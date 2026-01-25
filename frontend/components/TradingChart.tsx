@@ -27,7 +27,7 @@ interface TradingChartProps {
 export default function TradingChart({
   history,
   chartIndicators,
-  selectedPeriodStartIndex = 0,
+  // selectedPeriodStartIndex は v5 API で未対応のため未使用
   height = 400,
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -89,14 +89,6 @@ export default function TradingChart({
       rsi: createLineData(chartIndicators.rsi),
     };
   }, [chartIndicators, history]);
-
-  // Selected period start date
-  const selectedPeriodStartDate = useMemo(() => {
-    if (selectedPeriodStartIndex > 0 && selectedPeriodStartIndex < history.length) {
-      return history[selectedPeriodStartIndex]?.date;
-    }
-    return null;
-  }, [history, selectedPeriodStartIndex]);
 
   useEffect(() => {
     if (!chartContainerRef.current || candleData.length === 0) return;
@@ -283,19 +275,6 @@ export default function TradingChart({
       }
     }
 
-    // Add selected period start marker
-    if (selectedPeriodStartDate) {
-      candlestickSeries.setMarkers([
-        {
-          time: selectedPeriodStartDate as Time,
-          position: 'aboveBar',
-          color: '#6b7280',
-          shape: 'arrowDown',
-          text: '',
-        },
-      ]);
-    }
-
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
@@ -314,7 +293,7 @@ export default function TradingChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [candleData, volumeData, indicatorData, indicatorMode, selectedPeriodStartDate, height]);
+  }, [candleData, volumeData, indicatorData, indicatorMode, height]);
 
   const hasChartIndicators = chartIndicators !== undefined;
 
