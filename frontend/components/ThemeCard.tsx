@@ -1,0 +1,118 @@
+'use client';
+
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
+import type { Theme } from '@/lib/api';
+import { getThemeColor } from '@/lib/api';
+import Sparkline, { SparklineSkeleton } from './Sparkline';
+
+interface ThemeCardProps {
+  theme: Theme;
+  period: string;
+  rank?: number;
+}
+
+export default function ThemeCard({ theme, period, rank }: ThemeCardProps) {
+  const changePercent = theme.change_percent ?? 0;
+  const isPositive = changePercent >= 0;
+  const themeColor = getThemeColor(theme.id);
+
+  return (
+    <Link href={`/theme/${theme.id}?period=${period}`}>
+      <div className="theme-row group">
+        {/* Rank */}
+        {rank !== undefined && (
+          <div
+            className={`rank-badge ${
+              isPositive ? 'rank-badge-positive' : 'rank-badge-negative'
+            }`}
+          >
+            {rank}
+          </div>
+        )}
+
+        {/* Theme Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-gray-100 group-hover:text-blue-400 transition-colors">
+              {theme.name}
+            </h3>
+          </div>
+          {theme.description && (
+            <span className={`inline-block text-xs px-2 py-0.5 rounded mt-1 ${themeColor.bg} ${themeColor.text} border ${themeColor.border}`}>
+              {theme.description}
+            </span>
+          )}
+          {/* Top 3 Stocks */}
+          {theme.top_stocks && theme.top_stocks.length > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs">
+              {theme.top_stocks.slice(0, 3).map((stock) => {
+                const stockChange = stock.change_percent ?? 0;
+                const stockPositive = stockChange >= 0;
+                return (
+                  <span key={stock.code} className="text-gray-400">
+                    {stock.name}
+                    <span className={`ml-1 ${stockPositive ? 'text-green-400' : 'text-red-400'}`}>
+                      {stockPositive ? '+' : ''}{stockChange.toFixed(1)}%
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Sparkline */}
+        <div className="hidden md:block flex-shrink-0">
+          <Sparkline
+            data={theme.sparkline || { data: [], period_start_index: 0 }}
+            isPositive={isPositive}
+            width={100}
+            height={36}
+          />
+        </div>
+
+        {/* Change Percent */}
+        <div className="text-right min-w-[80px] flex-shrink-0">
+          <div
+            className={`text-lg font-bold ${
+              isPositive ? 'text-green-400' : 'text-red-400'
+            }`}
+          >
+            {isPositive ? '+' : ''}
+            {changePercent.toFixed(1)}%
+          </div>
+          {theme.change_percent_1d != null && (
+            <div className="text-xs text-gray-400">
+              1日{' '}
+              <span className={theme.change_percent_1d >= 0 ? 'text-green-400' : 'text-red-400'}>
+                {theme.change_percent_1d >= 0 ? '+' : ''}{theme.change_percent_1d.toFixed(1)}%
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Arrow */}
+        <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-blue-400 transition-colors flex-shrink-0" />
+      </div>
+    </Link>
+  );
+}
+
+export function ThemeCardSkeleton() {
+  return (
+    <div className="theme-row">
+      <div className="skeleton h-8 w-8 rounded-full flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="skeleton h-5 w-32 mb-1" />
+        <div className="skeleton h-4 w-24 rounded mb-1" />
+        <div className="skeleton h-3 w-48" />
+      </div>
+      <div className="hidden md:block">
+        <SparklineSkeleton width={100} height={36} />
+      </div>
+      <div className="skeleton h-6 w-16" />
+      <div className="skeleton h-5 w-5 rounded" />
+    </div>
+  );
+}
