@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, Layers, AlertCircle, RefreshCw } from 'lucide-react';
 import StockCard, { StockCardSkeleton } from '@/components/StockCard';
 import PeriodSelector from '@/components/PeriodSelector';
-import { fetchThemeDetail, type ThemeDetail, type PeriodValue, PERIODS } from '@/lib/api';
+import { useThemeDetail } from '@/lib/hooks';
+import { type PeriodValue, PERIODS } from '@/lib/api';
 
 export default function ThemeDetailPage() {
   const params = useParams();
@@ -15,30 +16,10 @@ export default function ThemeDetailPage() {
   const themeId = params.id as string;
   const initialPeriod = (searchParams.get('period') as PeriodValue) || '1mo';
 
-  const [theme, setTheme] = useState<ThemeDetail | null>(null);
   const [period, setPeriod] = useState<PeriodValue>(initialPeriod);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadTheme = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchThemeDetail(themeId, period);
-        setTheme(data);
-      } catch (err) {
-        setError('テーマの詳細を取得できませんでした。');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (themeId) {
-      loadTheme();
-    }
-  }, [themeId, period]);
+  // SWR でデータ取得（キャッシュ有効）
+  const { data: theme, error, isLoading, mutate } = useThemeDetail(themeId, period);
 
   const handlePeriodChange = (newPeriod: PeriodValue) => {
     setPeriod(newPeriod);
@@ -46,19 +27,12 @@ export default function ThemeDetailPage() {
   };
 
   const handleRetry = () => {
-    setLoading(true);
-    setError(null);
-    fetchThemeDetail(themeId, period)
-      .then(setTheme)
-      .catch((err) => {
-        setError('テーマの詳細を取得できませんでした。');
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
+    mutate();
   };
 
   const changePercent = theme?.change_percent ?? 0;
   const isPositive = changePercent >= 0;
+  const loading = isLoading;
 
   return (
     <div className="space-y-6">
@@ -77,7 +51,7 @@ export default function ThemeDetailPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-300">テーマの詳細を取得できませんでした。</p>
               <button
                 onClick={handleRetry}
                 className="mt-2 flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300"

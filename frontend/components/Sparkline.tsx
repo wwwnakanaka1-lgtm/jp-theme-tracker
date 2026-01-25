@@ -69,7 +69,7 @@ export default function Sparkline({
       {/* Max label */}
       {showMinMax && (
         <div
-          className="absolute right-0 text-[10px] text-green-400 font-medium"
+          className="absolute left-0 text-[10px] text-green-400 font-medium"
           style={{ top: 0 }}
         >
           {maxText}
@@ -109,7 +109,7 @@ export default function Sparkline({
       {/* Min label */}
       {showMinMax && (
         <div
-          className="absolute right-0 text-[10px] text-red-400 font-medium"
+          className="absolute left-0 text-[10px] text-red-400 font-medium"
           style={{ bottom: 0 }}
         >
           {minText}

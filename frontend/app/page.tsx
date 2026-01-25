@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import ThemeCard, { ThemeCardSkeleton } from '@/components/ThemeCard';
 import PeriodSelector from '@/components/PeriodSelector';
 import Nikkei225Card from '@/components/Nikkei225Card';
 import MarketHeader from '@/components/MarketHeader';
-import { fetchThemesWithMeta, type Theme, type PeriodValue } from '@/lib/api';
+import { useThemesWithMeta } from '@/lib/hooks';
+import type { PeriodValue } from '@/lib/api';
 
 type DisplayMode = 10 | 20 | 'all';
 
@@ -16,40 +17,24 @@ export default function HomePage() {
   const searchParams = useSearchParams();
   const urlPeriod = (searchParams.get('period') as PeriodValue) || '1mo';
 
-  const [themes, setThemes] = useState<Theme[]>([]);
   const [period, setPeriod] = useState<PeriodValue>(urlPeriod);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>(10);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   // URLパラメータの変更を監視
   useEffect(() => {
     if (urlPeriod !== period) {
       setPeriod(urlPeriod);
     }
-  }, [urlPeriod]);
+  }, [urlPeriod, period]);
 
-  useEffect(() => {
-    const loadThemes = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetchThemesWithMeta(period);
-        // Sort by change_percent descending
-        const sorted = [...response.themes].sort((a, b) => b.change_percent - a.change_percent);
-        setThemes(sorted);
-        setLastUpdated(response.last_updated);
-      } catch (err) {
-        setError('テーマの取得に失敗しました。バックエンドサーバーが起動しているか確認してください。');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // SWR でデータ取得（キャッシュ有効）
+  const { data: response, error, isLoading, mutate } = useThemesWithMeta(period);
 
-    loadThemes();
-  }, [period]);
+  // ソート済みテーマ
+  const themes = useMemo(() => {
+    if (!response?.themes) return [];
+    return [...response.themes].sort((a, b) => b.change_percent - a.change_percent);
+  }, [response?.themes]);
 
   const handlePeriodChange = (newPeriod: PeriodValue) => {
     setPeriod(newPeriod);
@@ -57,19 +42,7 @@ export default function HomePage() {
   };
 
   const handleRetry = () => {
-    setLoading(true);
-    setError(null);
-    fetchThemesWithMeta(period)
-      .then((response) => {
-        const sorted = [...response.themes].sort((a, b) => b.change_percent - a.change_percent);
-        setThemes(sorted);
-        setLastUpdated(response.last_updated);
-      })
-      .catch((err) => {
-        setError('テーマの取得に失敗しました。バックエンドサーバーが起動しているか確認してください。');
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
+    mutate();
   };
 
   // 表示するテーマを計算
@@ -87,6 +60,7 @@ export default function HomePage() {
   };
 
   const { topThemes, bottomThemes } = getDisplayThemes();
+  const loading = isLoading;
 
   return (
     <div className="space-y-4">
@@ -99,7 +73,9 @@ export default function HomePage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-300">
+                テーマの取得に失敗しました。バックエンドサーバーが起動しているか確認してください。
+              </p>
               <button
                 onClick={handleRetry}
                 className="mt-2 flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300"
@@ -125,7 +101,7 @@ export default function HomePage() {
       {!loading && !error && themes.length > 0 && (
         <div className="space-y-4">
           {/* Market Header */}
-          <MarketHeader lastUpdated={lastUpdated} period={period} />
+          <MarketHeader lastUpdated={response?.last_updated ?? null} period={period} />
 
           {/* Top Themes */}
           <div>

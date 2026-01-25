@@ -61,6 +61,7 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
             isPositive={isPositive}
             width={80}
             height={28}
+            showMinMax={false}
           />
         </div>
         <div className="flex-shrink-0 sm:hidden">
@@ -69,6 +70,7 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
             isPositive={isPositive}
             width={50}
             height={20}
+            showMinMax={false}
           />
         </div>
 

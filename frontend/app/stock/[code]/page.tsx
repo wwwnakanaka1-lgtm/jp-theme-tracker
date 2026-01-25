@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'lucide-react';
 import TradingChart, { TradingChartSkeleton } from '@/components/TradingChart';
 import PeriodSelector from '@/components/PeriodSelector';
-import { fetchStockDetail, type StockDetail, type PeriodValue, PERIODS } from '@/lib/api';
+import { useStockDetail } from '@/lib/hooks';
+import { type PeriodValue, PERIODS } from '@/lib/api';
 
 export default function StockDetailPage() {
   const params = useParams();
@@ -15,42 +16,10 @@ export default function StockDetailPage() {
   const stockCode = params.code as string;
   const initialPeriod = (searchParams.get('period') as PeriodValue) || '1mo';
 
-  const [stock, setStock] = useState<StockDetail | null>(null);
   const [period, setPeriod] = useState<PeriodValue>(initialPeriod);
-  const [loading, setLoading] = useState(true);
-  const [chartLoading, setChartLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [prevStockCode, setPrevStockCode] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadStock = async () => {
-      // 銘柄が変わった場合は全体をローディング
-      const isNewStock = stockCode !== prevStockCode;
-      if (isNewStock) {
-        setLoading(true);
-        setPrevStockCode(stockCode);
-      } else {
-        // 期間変更の場合はチャートのみローディング
-        setChartLoading(true);
-      }
-      setError(null);
-
-      try {
-        const data = await fetchStockDetail(stockCode, period);
-        setStock(data);
-      } catch (err) {
-        setError('銘柄の詳細を取得できませんでした。');
-        console.error(err);
-      } finally {
-        setLoading(false);
-        setChartLoading(false);
-      }
-    };
-
-    if (stockCode) {
-      loadStock();
-    }
-  }, [stockCode, period, prevStockCode]);
+  // SWR でデータ取得（キャッシュ有効）
+  const { data: stock, error, isLoading, isValidating, mutate } = useStockDetail(stockCode, period);
 
   const handlePeriodChange = (newPeriod: PeriodValue) => {
     setPeriod(newPeriod);
@@ -58,19 +27,12 @@ export default function StockDetailPage() {
   };
 
   const handleRetry = () => {
-    setLoading(true);
-    setChartLoading(false);
-    setError(null);
-    fetchStockDetail(stockCode, period)
-      .then(setStock)
-      .catch((err) => {
-        setError('銘柄の詳細を取得できませんでした。');
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
+    mutate();
   };
 
   const isPositive = stock ? (stock.change_percent ?? 0) >= 0 : true;
+  const loading = isLoading;
+  const chartLoading = isValidating && !isLoading;
 
   return (
     <div className="space-y-6">
@@ -99,7 +61,7 @@ export default function StockDetailPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-300">銘柄の詳細を取得できませんでした。</p>
               <button
                 onClick={handleRetry}
                 className="mt-2 flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300"
@@ -209,4 +171,3 @@ export default function StockDetailPage() {
     </div>
   );
 }
-
