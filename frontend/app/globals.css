@@ -21,9 +21,9 @@
     @apply hover:shadow-lg hover:border-gray-600 cursor-pointer;
   }
 
-  /* Theme Row - リストスタイル */
+  /* Theme Row - リストスタイル（境界線を強化） */
   .theme-row {
-    @apply flex items-center gap-4 px-4 py-3 bg-gray-800 border-b border-gray-700
+    @apply flex items-center gap-3 px-3 py-3 bg-gray-800 border-b-2 border-gray-600
            hover:bg-gray-750 cursor-pointer transition-colors;
   }
 

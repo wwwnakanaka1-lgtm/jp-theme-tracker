@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, RefreshCw, BarChart2, Activity } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'lucide-react';
 import StockChart, { StockChartSkeleton } from '@/components/StockChart';
 import PeriodSelector from '@/components/PeriodSelector';
 import { fetchStockDetail, type StockDetail, type PeriodValue, PERIODS } from '@/lib/api';
@@ -181,41 +181,6 @@ export default function StockDetailPage() {
         </div>
       )}
 
-      {/* Statistics Cards */}
-      {!loading && stock && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            icon={<BarChart2 className="w-5 h-5 text-blue-400" />}
-            label="Beta"
-            value={stock.beta != null ? stock.beta.toFixed(2) : '-'}
-            description="市場感応度"
-          />
-          <StatCard
-            icon={<Activity className="w-5 h-5 text-green-400" />}
-            label="Alpha"
-            value={
-              stock.alpha != null
-                ? `${stock.alpha >= 0 ? '+' : ''}${stock.alpha.toFixed(2)}%`
-                : '-'
-            }
-            valueColor={
-              stock.alpha != null
-                ? stock.alpha >= 0
-                  ? 'text-green-400'
-                  : 'text-red-400'
-                : undefined
-            }
-            description="超過リターン"
-          />
-          <StatCard
-            icon={<BarChart2 className="w-5 h-5 text-purple-400" />}
-            label="R²"
-            value={stock.r_squared != null ? stock.r_squared.toFixed(2) : '-'}
-            description="決定係数"
-          />
-        </div>
-      )}
-
       {/* Period Selector */}
       <div className="flex justify-end">
         <PeriodSelector selectedPeriod={period} onPeriodChange={handlePeriodChange} />
@@ -248,25 +213,3 @@ export default function StockDetailPage() {
   );
 }
 
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  valueColor?: string;
-  description: string;
-}
-
-function StatCard({ icon, label, value, valueColor, description }: StatCardProps) {
-  return (
-    <div className="bg-gray-800 rounded-lg p-4">
-      <div className="flex items-center gap-3 mb-2">
-        {icon}
-        <span className="text-sm font-medium text-gray-400">{label}</span>
-      </div>
-      <p className={`text-2xl font-bold ${valueColor || 'text-gray-100'}`}>
-        {value}
-      </p>
-      <p className="text-xs text-gray-500 mt-1">{description}</p>
-    </div>
-  );
-}

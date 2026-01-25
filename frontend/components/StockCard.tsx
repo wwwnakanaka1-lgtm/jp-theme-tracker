@@ -59,13 +59,13 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
           )}
         </div>
 
-        {/* Sparkline */}
-        <div className="hidden md:block flex-shrink-0">
+        {/* Sparkline - モバイルでも表示 */}
+        <div className="flex-shrink-0">
           <Sparkline
             data={stock.sparkline || { data: [], period_start_index: 0 }}
             isPositive={isPositive}
-            width={100}
-            height={36}
+            width={80}
+            height={28}
           />
         </div>
 
@@ -108,8 +108,8 @@ export function StockCardSkeleton() {
         <div className="skeleton h-5 w-32 mb-1" />
         <div className="skeleton h-3 w-48" />
       </div>
-      <div className="hidden md:block">
-        <SparklineSkeleton width={100} height={36} />
+      <div className="flex-shrink-0">
+        <SparklineSkeleton width={80} height={28} />
       </div>
       <div className="skeleton h-6 w-16" />
       <div className="skeleton h-5 w-5 rounded" />
