@@ -1,0 +1,567 @@
+'use client';
+
+import { useEffect, useRef, useState, useMemo } from 'react';
+import {
+  createChart,
+  ColorType,
+  IChartApi,
+  ISeriesApi,
+  CandlestickData,
+  HistogramData,
+  LineData,
+  Time,
+} from 'lightweight-charts';
+import type { PriceData, ChartIndicators } from '@/lib/api';
+
+type IndicatorMode = 'ma' | 'bollinger' | 'ichimoku';
+
+interface TradingChartProps {
+  history: PriceData[];
+  chartIndicators?: ChartIndicators;
+  selectedPeriodStartIndex?: number;
+  height?: number;
+}
+
+export default function TradingChart({
+  history,
+  chartIndicators,
+  selectedPeriodStartIndex = 0,
+  height = 400,
+}: TradingChartProps) {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const [indicatorMode, setIndicatorMode] = useState<IndicatorMode>('ma');
+
+  // Convert history data to lightweight-charts format
+  const { candleData, volumeData } = useMemo(() => {
+    const candles: CandlestickData<Time>[] = [];
+    const volumes: HistogramData<Time>[] = [];
+
+    history.forEach((item) => {
+      const time = item.date as Time;
+      const isUp = item.close >= item.open;
+
+      candles.push({
+        time,
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        close: item.close,
+      });
+
+      volumes.push({
+        time,
+        value: item.volume,
+        color: isUp ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+      });
+    });
+
+    return { candleData: candles, volumeData: volumes };
+  }, [history]);
+
+  // Prepare indicator data
+  const indicatorData = useMemo(() => {
+    if (!chartIndicators) return null;
+
+    const createLineData = (values: (number | null)[]): LineData<Time>[] => {
+      return values
+        .map((value, index) => ({
+          time: history[index]?.date as Time,
+          value: value ?? undefined,
+        }))
+        .filter((d): d is LineData<Time> => d.value !== undefined);
+    };
+
+    return {
+      ma20: createLineData(chartIndicators.ma.ma20),
+      ma75: createLineData(chartIndicators.ma.ma75),
+      ma200: createLineData(chartIndicators.ma.ma200),
+      bbUpper: createLineData(chartIndicators.bollinger.upper),
+      bbMiddle: createLineData(chartIndicators.bollinger.middle),
+      bbLower: createLineData(chartIndicators.bollinger.lower),
+      tenkan: createLineData(chartIndicators.ichimoku.tenkan),
+      kijun: createLineData(chartIndicators.ichimoku.kijun),
+      senkouA: createLineData(chartIndicators.ichimoku.senkou_a),
+      senkouB: createLineData(chartIndicators.ichimoku.senkou_b),
+      chikou: createLineData(chartIndicators.ichimoku.chikou),
+      rsi: createLineData(chartIndicators.rsi),
+    };
+  }, [chartIndicators, history]);
+
+  // Selected period start date
+  const selectedPeriodStartDate = useMemo(() => {
+    if (selectedPeriodStartIndex > 0 && selectedPeriodStartIndex < history.length) {
+      return history[selectedPeriodStartIndex]?.date;
+    }
+    return null;
+  }, [history, selectedPeriodStartIndex]);
+
+  useEffect(() => {
+    if (!chartContainerRef.current || candleData.length === 0) return;
+
+    // Clear existing chart
+    if (chartRef.current) {
+      chartRef.current.remove();
+    }
+
+    // Create chart
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#111827' },
+        textColor: '#9ca3af',
+      },
+      grid: {
+        vertLines: { color: '#1f2937' },
+        horzLines: { color: '#1f2937' },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: height,
+      crosshair: {
+        mode: 0,
+        vertLine: {
+          color: '#6b7280',
+          width: 1,
+          style: 2,
+          labelBackgroundColor: '#374151',
+        },
+        horzLine: {
+          color: '#6b7280',
+          width: 1,
+          style: 2,
+          labelBackgroundColor: '#374151',
+        },
+      },
+      timeScale: {
+        borderColor: '#374151',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      rightPriceScale: {
+        borderColor: '#374151',
+      },
+    });
+
+    // Candlestick series
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: '#22c55e',
+      downColor: '#ef4444',
+      borderUpColor: '#22c55e',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#22c55e',
+      wickDownColor: '#ef4444',
+    });
+    candlestickSeries.setData(candleData);
+
+    // Volume series
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: {
+        top: 0.85,
+        bottom: 0,
+      },
+    });
+    volumeSeries.setData(volumeData);
+
+    // Add indicator lines based on mode
+    const indicatorSeries: ISeriesApi<'Line'>[] = [];
+
+    if (indicatorData) {
+      if (indicatorMode === 'ma') {
+        // MA20
+        if (indicatorData.ma20.length > 0) {
+          const ma20Series = chart.addLineSeries({
+            color: '#f59e0b',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          ma20Series.setData(indicatorData.ma20);
+          indicatorSeries.push(ma20Series);
+        }
+        // MA75
+        if (indicatorData.ma75.length > 0) {
+          const ma75Series = chart.addLineSeries({
+            color: '#8b5cf6',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          ma75Series.setData(indicatorData.ma75);
+          indicatorSeries.push(ma75Series);
+        }
+        // MA200
+        if (indicatorData.ma200.length > 0) {
+          const ma200Series = chart.addLineSeries({
+            color: '#ec4899',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          ma200Series.setData(indicatorData.ma200);
+          indicatorSeries.push(ma200Series);
+        }
+      } else if (indicatorMode === 'bollinger') {
+        // Bollinger Bands
+        if (indicatorData.bbUpper.length > 0) {
+          const bbUpperSeries = chart.addLineSeries({
+            color: '#ef4444',
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          bbUpperSeries.setData(indicatorData.bbUpper);
+          indicatorSeries.push(bbUpperSeries);
+        }
+        if (indicatorData.bbMiddle.length > 0) {
+          const bbMiddleSeries = chart.addLineSeries({
+            color: '#9ca3af',
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          bbMiddleSeries.setData(indicatorData.bbMiddle);
+          indicatorSeries.push(bbMiddleSeries);
+        }
+        if (indicatorData.bbLower.length > 0) {
+          const bbLowerSeries = chart.addLineSeries({
+            color: '#22c55e',
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          bbLowerSeries.setData(indicatorData.bbLower);
+          indicatorSeries.push(bbLowerSeries);
+        }
+      } else if (indicatorMode === 'ichimoku') {
+        // Ichimoku
+        if (indicatorData.tenkan.length > 0) {
+          const tenkanSeries = chart.addLineSeries({
+            color: '#ef4444',
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          tenkanSeries.setData(indicatorData.tenkan);
+          indicatorSeries.push(tenkanSeries);
+        }
+        if (indicatorData.kijun.length > 0) {
+          const kijunSeries = chart.addLineSeries({
+            color: '#3b82f6',
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          kijunSeries.setData(indicatorData.kijun);
+          indicatorSeries.push(kijunSeries);
+        }
+        if (indicatorData.chikou.length > 0) {
+          const chikouSeries = chart.addLineSeries({
+            color: '#22c55e',
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          chikouSeries.setData(indicatorData.chikou);
+          indicatorSeries.push(chikouSeries);
+        }
+        // Kumo (cloud) - using area between senkouA and senkouB
+        if (indicatorData.senkouA.length > 0) {
+          const senkouASeries = chart.addLineSeries({
+            color: 'rgba(34, 197, 94, 0.3)',
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          senkouASeries.setData(indicatorData.senkouA);
+          indicatorSeries.push(senkouASeries);
+        }
+        if (indicatorData.senkouB.length > 0) {
+          const senkouBSeries = chart.addLineSeries({
+            color: 'rgba(239, 68, 68, 0.3)',
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          senkouBSeries.setData(indicatorData.senkouB);
+          indicatorSeries.push(senkouBSeries);
+        }
+      }
+    }
+
+    // Add selected period start marker
+    if (selectedPeriodStartDate) {
+      candlestickSeries.createPriceLine({
+        price: 0,
+        color: 'transparent',
+        lineWidth: 0,
+        lineStyle: 0,
+        axisLabelVisible: false,
+      });
+
+      // Use markers instead for vertical line indication
+      candlestickSeries.setMarkers([
+        {
+          time: selectedPeriodStartDate as Time,
+          position: 'aboveBar',
+          color: '#6b7280',
+          shape: 'arrowDown',
+          text: '',
+        },
+      ]);
+    }
+
+    chart.timeScale().fitContent();
+    chartRef.current = chart;
+
+    // Resize handler
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+      chartRef.current = null;
+    };
+  }, [candleData, volumeData, indicatorData, indicatorMode, selectedPeriodStartDate, height]);
+
+  const hasChartIndicators = chartIndicators !== undefined;
+
+  if (history.length === 0) {
+    return (
+      <div className="h-96 flex items-center justify-center bg-gray-900 rounded-lg">
+        <p className="text-gray-500">データがありません</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Indicator Mode Selector */}
+      {hasChartIndicators && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => setIndicatorMode('ma')}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              indicatorMode === 'ma'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            移動平均線
+          </button>
+          <button
+            onClick={() => setIndicatorMode('bollinger')}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              indicatorMode === 'bollinger'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            ボリンジャーバンド
+          </button>
+          <button
+            onClick={() => setIndicatorMode('ichimoku')}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              indicatorMode === 'ichimoku'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            一目均衡表
+          </button>
+        </div>
+      )}
+
+      {/* Main Chart */}
+      <div className="bg-gray-900 rounded-lg overflow-hidden">
+        <div ref={chartContainerRef} />
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 flex-wrap px-4">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-green-500" />
+          <span className="text-xs text-gray-400">陽線</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500" />
+          <span className="text-xs text-gray-400">陰線</span>
+        </div>
+        {indicatorMode === 'ma' && hasChartIndicators && (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-amber-500" />
+              <span className="text-xs text-gray-400">MA20</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-violet-500" />
+              <span className="text-xs text-gray-400">MA75</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-pink-500" />
+              <span className="text-xs text-gray-400">MA200</span>
+            </div>
+          </>
+        )}
+        {indicatorMode === 'bollinger' && (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-red-500" style={{ borderStyle: 'dashed' }} />
+              <span className="text-xs text-gray-400">+2σ</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-gray-500" />
+              <span className="text-xs text-gray-400">SMA20</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-green-500" style={{ borderStyle: 'dashed' }} />
+              <span className="text-xs text-gray-400">-2σ</span>
+            </div>
+          </>
+        )}
+        {indicatorMode === 'ichimoku' && (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-red-500" />
+              <span className="text-xs text-gray-400">転換線</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-blue-500" />
+              <span className="text-xs text-gray-400">基準線</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-3 bg-green-500/30" />
+              <span className="text-xs text-gray-400">雲</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* RSI Chart (if available) */}
+      {indicatorData && indicatorData.rsi.length > 0 && (
+        <RSIChart data={indicatorData.rsi} history={history} />
+      )}
+    </div>
+  );
+}
+
+// Separate RSI Chart component
+function RSIChart({ data, history }: { data: LineData<Time>[]; history: PriceData[] }) {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+
+  useEffect(() => {
+    if (!chartContainerRef.current || data.length === 0) return;
+
+    if (chartRef.current) {
+      chartRef.current.remove();
+    }
+
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#111827' },
+        textColor: '#9ca3af',
+      },
+      grid: {
+        vertLines: { color: '#1f2937' },
+        horzLines: { color: '#1f2937' },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 120,
+      timeScale: {
+        borderColor: '#374151',
+        visible: false,
+      },
+      rightPriceScale: {
+        borderColor: '#374151',
+      },
+    });
+
+    const rsiSeries = chart.addLineSeries({
+      color: '#6366f1',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+    rsiSeries.setData(data);
+
+    // RSI reference lines at 30 and 70
+    rsiSeries.createPriceLine({
+      price: 70,
+      color: '#22c55e',
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+    });
+    rsiSeries.createPriceLine({
+      price: 30,
+      color: '#ef4444',
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+    });
+
+    chart.priceScale('right').applyOptions({
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.1,
+      },
+    });
+
+    chart.timeScale().fitContent();
+    chartRef.current = chart;
+
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+      chartRef.current = null;
+    };
+  }, [data]);
+
+  return (
+    <div className="bg-gray-900 rounded-lg p-4">
+      <h3 className="text-sm font-semibold text-gray-300 mb-2">RSI</h3>
+      <div ref={chartContainerRef} />
+      <div className="flex items-center justify-center mt-2">
+        <span className="text-xs text-gray-500">
+          30以下: 売られ過ぎ | 70以上: 買われ過ぎ
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function TradingChartSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="bg-gray-900 rounded-lg p-4">
+        <div className="skeleton h-[400px]" />
+      </div>
+      <div className="bg-gray-900 rounded-lg p-4">
+        <div className="skeleton h-4 w-12 mb-4" />
+        <div className="skeleton h-[100px]" />
+      </div>
+    </div>
+  );
+}

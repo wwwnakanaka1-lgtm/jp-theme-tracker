@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'lucide-react';
-import StockChart, { StockChartSkeleton } from '@/components/StockChart';
+import TradingChart, { TradingChartSkeleton } from '@/components/TradingChart';
 import PeriodSelector from '@/components/PeriodSelector';
 import { fetchStockDetail, type StockDetail, type PeriodValue, PERIODS } from '@/lib/api';
 
@@ -193,13 +193,10 @@ export default function StockDetailPage() {
           {chartLoading && <span className="ml-2 text-sm text-gray-400">更新中...</span>}
         </h3>
         {loading || chartLoading ? (
-          <StockChartSkeleton />
+          <TradingChartSkeleton />
         ) : stock && stock.history && stock.history.length > 0 ? (
-          <StockChart
+          <TradingChart
             history={stock.history}
-            ma5={stock.ma_5}
-            ma25={stock.ma_25}
-            rsi={stock.rsi}
             chartIndicators={stock.chart_indicators}
             selectedPeriodStartIndex={stock.selected_period_start_index}
           />

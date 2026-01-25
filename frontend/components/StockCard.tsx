@@ -59,8 +59,8 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
           )}
         </div>
 
-        {/* Sparkline - モバイルでも表示 */}
-        <div className="flex-shrink-0">
+        {/* Sparkline - モバイルでは小さく表示 */}
+        <div className="flex-shrink-0 hidden sm:block">
           <Sparkline
             data={stock.sparkline || { data: [], period_start_index: 0 }}
             isPositive={isPositive}
@@ -68,9 +68,17 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
             height={28}
           />
         </div>
+        <div className="flex-shrink-0 sm:hidden">
+          <Sparkline
+            data={stock.sparkline || { data: [], period_start_index: 0 }}
+            isPositive={isPositive}
+            width={50}
+            height={20}
+          />
+        </div>
 
         {/* Change Percent */}
-        <div className="text-right min-w-[80px] flex-shrink-0">
+        <div className="text-right min-w-[60px] sm:min-w-[80px] flex-shrink-0 ml-1">
           <div
             className={`text-lg font-bold ${
               isPositive ? 'text-green-400' : 'text-red-400'
@@ -108,10 +116,13 @@ export function StockCardSkeleton() {
         <div className="skeleton h-5 w-32 mb-1" />
         <div className="skeleton h-3 w-48" />
       </div>
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 hidden sm:block">
         <SparklineSkeleton width={80} height={28} />
       </div>
-      <div className="skeleton h-6 w-16" />
+      <div className="flex-shrink-0 sm:hidden">
+        <SparklineSkeleton width={50} height={20} />
+      </div>
+      <div className="skeleton h-6 w-14 sm:w-16 ml-1" />
       <div className="skeleton h-5 w-5 rounded" />
     </div>
   );
