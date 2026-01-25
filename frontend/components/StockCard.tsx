@@ -35,25 +35,20 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
         )}
 
         {/* Stock Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-mono text-gray-400">{stock.code.replace('.T', '')}</span>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-mono text-gray-400">{stock.code.replace('.T', '')}</span>
             {stock.market_cap_category && marketCapColors && (
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${marketCapColors.bg} ${marketCapColors.text} border ${marketCapColors.border}`}>
+              <span className={`inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium ${marketCapColors.bg} ${marketCapColors.text} border ${marketCapColors.border}`}>
                 {stock.market_cap_category.label}
               </span>
             )}
-            {themeName && themeColor && (
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${themeColor.bg} ${themeColor.text} border ${themeColor.border}`}>
-                {themeName}
-              </span>
-            )}
           </div>
-          <h3 className="text-base font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mt-0.5 truncate">
+          <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors leading-tight">
             {stock.name}
           </h3>
           {stock.description && (
-            <p className="text-xs text-gray-300 mt-0.5 truncate max-w-xs">
+            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
               {stock.description}
             </p>
           )}
@@ -97,8 +92,8 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
           )}
         </div>
 
-        {/* Arrow */}
-        <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-blue-400 transition-colors flex-shrink-0" />
+        {/* Arrow - デスクトップのみ */}
+        <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 transition-colors flex-shrink-0 hidden sm:block" />
       </div>
     </Link>
   );

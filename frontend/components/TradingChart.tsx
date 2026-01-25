@@ -5,11 +5,13 @@ import {
   createChart,
   ColorType,
   IChartApi,
-  ISeriesApi,
   CandlestickData,
   HistogramData,
   LineData,
   Time,
+  LineSeries,
+  CandlestickSeries,
+  HistogramSeries,
 } from 'lightweight-charts';
 import type { PriceData, ChartIndicators } from '@/lib/api';
 
@@ -141,8 +143,8 @@ export default function TradingChart({
       },
     });
 
-    // Candlestick series
-    const candlestickSeries = chart.addCandlestickSeries({
+    // Candlestick series (v5 API)
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderUpColor: '#22c55e',
@@ -152,8 +154,8 @@ export default function TradingChart({
     });
     candlestickSeries.setData(candleData);
 
-    // Volume series
-    const volumeSeries = chart.addHistogramSeries({
+    // Volume series (v5 API)
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
     });
@@ -166,47 +168,42 @@ export default function TradingChart({
     volumeSeries.setData(volumeData);
 
     // Add indicator lines based on mode
-    const indicatorSeries: ISeriesApi<'Line'>[] = [];
-
     if (indicatorData) {
       if (indicatorMode === 'ma') {
         // MA20
         if (indicatorData.ma20.length > 0) {
-          const ma20Series = chart.addLineSeries({
+          const ma20Series = chart.addSeries(LineSeries, {
             color: '#f59e0b',
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           ma20Series.setData(indicatorData.ma20);
-          indicatorSeries.push(ma20Series);
         }
         // MA75
         if (indicatorData.ma75.length > 0) {
-          const ma75Series = chart.addLineSeries({
+          const ma75Series = chart.addSeries(LineSeries, {
             color: '#8b5cf6',
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           ma75Series.setData(indicatorData.ma75);
-          indicatorSeries.push(ma75Series);
         }
         // MA200
         if (indicatorData.ma200.length > 0) {
-          const ma200Series = chart.addLineSeries({
+          const ma200Series = chart.addSeries(LineSeries, {
             color: '#ec4899',
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           ma200Series.setData(indicatorData.ma200);
-          indicatorSeries.push(ma200Series);
         }
       } else if (indicatorMode === 'bollinger') {
         // Bollinger Bands
         if (indicatorData.bbUpper.length > 0) {
-          const bbUpperSeries = chart.addLineSeries({
+          const bbUpperSeries = chart.addSeries(LineSeries, {
             color: '#ef4444',
             lineWidth: 1,
             lineStyle: 2,
@@ -214,20 +211,18 @@ export default function TradingChart({
             lastValueVisible: false,
           });
           bbUpperSeries.setData(indicatorData.bbUpper);
-          indicatorSeries.push(bbUpperSeries);
         }
         if (indicatorData.bbMiddle.length > 0) {
-          const bbMiddleSeries = chart.addLineSeries({
+          const bbMiddleSeries = chart.addSeries(LineSeries, {
             color: '#9ca3af',
             lineWidth: 1,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           bbMiddleSeries.setData(indicatorData.bbMiddle);
-          indicatorSeries.push(bbMiddleSeries);
         }
         if (indicatorData.bbLower.length > 0) {
-          const bbLowerSeries = chart.addLineSeries({
+          const bbLowerSeries = chart.addSeries(LineSeries, {
             color: '#22c55e',
             lineWidth: 1,
             lineStyle: 2,
@@ -235,32 +230,29 @@ export default function TradingChart({
             lastValueVisible: false,
           });
           bbLowerSeries.setData(indicatorData.bbLower);
-          indicatorSeries.push(bbLowerSeries);
         }
       } else if (indicatorMode === 'ichimoku') {
         // Ichimoku
         if (indicatorData.tenkan.length > 0) {
-          const tenkanSeries = chart.addLineSeries({
+          const tenkanSeries = chart.addSeries(LineSeries, {
             color: '#ef4444',
             lineWidth: 1,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           tenkanSeries.setData(indicatorData.tenkan);
-          indicatorSeries.push(tenkanSeries);
         }
         if (indicatorData.kijun.length > 0) {
-          const kijunSeries = chart.addLineSeries({
+          const kijunSeries = chart.addSeries(LineSeries, {
             color: '#3b82f6',
             lineWidth: 1,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           kijunSeries.setData(indicatorData.kijun);
-          indicatorSeries.push(kijunSeries);
         }
         if (indicatorData.chikou.length > 0) {
-          const chikouSeries = chart.addLineSeries({
+          const chikouSeries = chart.addSeries(LineSeries, {
             color: '#22c55e',
             lineWidth: 1,
             lineStyle: 2,
@@ -268,43 +260,31 @@ export default function TradingChart({
             lastValueVisible: false,
           });
           chikouSeries.setData(indicatorData.chikou);
-          indicatorSeries.push(chikouSeries);
         }
-        // Kumo (cloud) - using area between senkouA and senkouB
+        // Kumo (cloud)
         if (indicatorData.senkouA.length > 0) {
-          const senkouASeries = chart.addLineSeries({
+          const senkouASeries = chart.addSeries(LineSeries, {
             color: 'rgba(34, 197, 94, 0.3)',
             lineWidth: 1,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           senkouASeries.setData(indicatorData.senkouA);
-          indicatorSeries.push(senkouASeries);
         }
         if (indicatorData.senkouB.length > 0) {
-          const senkouBSeries = chart.addLineSeries({
+          const senkouBSeries = chart.addSeries(LineSeries, {
             color: 'rgba(239, 68, 68, 0.3)',
             lineWidth: 1,
             priceLineVisible: false,
             lastValueVisible: false,
           });
           senkouBSeries.setData(indicatorData.senkouB);
-          indicatorSeries.push(senkouBSeries);
         }
       }
     }
 
     // Add selected period start marker
     if (selectedPeriodStartDate) {
-      candlestickSeries.createPriceLine({
-        price: 0,
-        color: 'transparent',
-        lineWidth: 0,
-        lineStyle: 0,
-        axisLabelVisible: false,
-      });
-
-      // Use markers instead for vertical line indication
       candlestickSeries.setMarkers([
         {
           time: selectedPeriodStartDate as Time,
@@ -350,30 +330,30 @@ export default function TradingChart({
     <div className="space-y-4">
       {/* Indicator Mode Selector */}
       {hasChartIndicators && (
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center gap-2 flex-wrap">
           <button
             onClick={() => setIndicatorMode('ma')}
-            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
               indicatorMode === 'ma'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            移動平均線
+            移動平均
           </button>
           <button
             onClick={() => setIndicatorMode('bollinger')}
-            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
               indicatorMode === 'bollinger'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            ボリンジャーバンド
+            ボリンジャー
           </button>
           <button
             onClick={() => setIndicatorMode('ichimoku')}
-            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
               indicatorMode === 'ichimoku'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -390,60 +370,56 @@ export default function TradingChart({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 flex-wrap px-4">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-4 flex-wrap px-2 text-xs">
+        <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-green-500" />
-          <span className="text-xs text-gray-400">陽線</span>
+          <span className="text-gray-400">陽線</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-red-500" />
-          <span className="text-xs text-gray-400">陰線</span>
+          <span className="text-gray-400">陰線</span>
         </div>
         {indicatorMode === 'ma' && hasChartIndicators && (
           <>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-amber-500" />
-              <span className="text-xs text-gray-400">MA20</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-amber-500" />
+              <span className="text-gray-400">MA20</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-violet-500" />
-              <span className="text-xs text-gray-400">MA75</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-violet-500" />
+              <span className="text-gray-400">MA75</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-pink-500" />
-              <span className="text-xs text-gray-400">MA200</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-pink-500" />
+              <span className="text-gray-400">MA200</span>
             </div>
           </>
         )}
         {indicatorMode === 'bollinger' && (
           <>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-red-500" style={{ borderStyle: 'dashed' }} />
-              <span className="text-xs text-gray-400">+2σ</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-red-500" />
+              <span className="text-gray-400">+2σ</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-gray-500" />
-              <span className="text-xs text-gray-400">SMA20</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-gray-500" />
+              <span className="text-gray-400">SMA</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-green-500" style={{ borderStyle: 'dashed' }} />
-              <span className="text-xs text-gray-400">-2σ</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-green-500" />
+              <span className="text-gray-400">-2σ</span>
             </div>
           </>
         )}
         {indicatorMode === 'ichimoku' && (
           <>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-red-500" />
-              <span className="text-xs text-gray-400">転換線</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-red-500" />
+              <span className="text-gray-400">転換</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-blue-500" />
-              <span className="text-xs text-gray-400">基準線</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-3 bg-green-500/30" />
-              <span className="text-xs text-gray-400">雲</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-blue-500" />
+              <span className="text-gray-400">基準</span>
             </div>
           </>
         )}
@@ -451,14 +427,14 @@ export default function TradingChart({
 
       {/* RSI Chart (if available) */}
       {indicatorData && indicatorData.rsi.length > 0 && (
-        <RSIChart data={indicatorData.rsi} history={history} />
+        <RSIChart data={indicatorData.rsi} />
       )}
     </div>
   );
 }
 
 // Separate RSI Chart component
-function RSIChart({ data, history }: { data: LineData<Time>[]; history: PriceData[] }) {
+function RSIChart({ data }: { data: LineData<Time>[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -479,7 +455,7 @@ function RSIChart({ data, history }: { data: LineData<Time>[]; history: PriceDat
         horzLines: { color: '#1f2937' },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 120,
+      height: 100,
       timeScale: {
         borderColor: '#374151',
         visible: false,
@@ -489,7 +465,8 @@ function RSIChart({ data, history }: { data: LineData<Time>[]; history: PriceDat
       },
     });
 
-    const rsiSeries = chart.addLineSeries({
+    // v5 API
+    const rsiSeries = chart.addSeries(LineSeries, {
       color: '#6366f1',
       lineWidth: 2,
       priceLineVisible: false,
@@ -540,11 +517,11 @@ function RSIChart({ data, history }: { data: LineData<Time>[]; history: PriceDat
   }, [data]);
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4">
-      <h3 className="text-sm font-semibold text-gray-300 mb-2">RSI</h3>
+    <div className="bg-gray-900 rounded-lg p-3">
+      <h3 className="text-xs font-semibold text-gray-400 mb-2">RSI</h3>
       <div ref={chartContainerRef} />
-      <div className="flex items-center justify-center mt-2">
-        <span className="text-xs text-gray-500">
+      <div className="flex items-center justify-center mt-1">
+        <span className="text-[10px] text-gray-500">
           30以下: 売られ過ぎ | 70以上: 買われ過ぎ
         </span>
       </div>

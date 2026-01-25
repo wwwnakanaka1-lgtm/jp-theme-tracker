@@ -32,27 +32,25 @@ export default function ThemeCard({ theme, period, rank }: ThemeCardProps) {
         )}
 
         {/* Theme Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-gray-100 group-hover:text-blue-400 transition-colors">
-              {theme.name}
-            </h3>
-          </div>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors leading-tight">
+            {theme.name}
+          </h3>
           {theme.description && (
-            <span className={`inline-block text-xs px-2 py-0.5 rounded mt-1 ${themeColor.bg} ${themeColor.text} border ${themeColor.border}`}>
+            <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded mt-0.5 ${themeColor.bg} ${themeColor.text} border ${themeColor.border}`}>
               {theme.description}
             </span>
           )}
-          {/* Top 3 Stocks */}
+          {/* Top 3 Stocks - モバイルでは2つまで */}
           {theme.top_stocks && theme.top_stocks.length > 0 && (
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs">
-              {theme.top_stocks.slice(0, 3).map((stock) => {
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1 text-[10px]">
+              {theme.top_stocks.slice(0, 2).map((stock) => {
                 const stockChange = stock.change_percent ?? 0;
                 const stockPositive = stockChange >= 0;
                 return (
                   <span key={stock.code} className="text-gray-400">
                     {stock.name}
-                    <span className={`ml-1 ${stockPositive ? 'text-green-400' : 'text-red-400'}`}>
+                    <span className={`ml-0.5 ${stockPositive ? 'text-green-400' : 'text-red-400'}`}>
                       {stockPositive ? '+' : ''}{stockChange.toFixed(1)}%
                     </span>
                   </span>
@@ -100,8 +98,8 @@ export default function ThemeCard({ theme, period, rank }: ThemeCardProps) {
           )}
         </div>
 
-        {/* Arrow */}
-        <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-blue-400 transition-colors flex-shrink-0" />
+        {/* Arrow - デスクトップのみ */}
+        <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 transition-colors flex-shrink-0 hidden sm:block" />
       </div>
     </Link>
   );

@@ -21,18 +21,15 @@
     @apply hover:shadow-lg hover:border-gray-600 cursor-pointer;
   }
 
-  /* Theme Row - リストスタイル（境界線を強化） */
+  /* Theme Row - リストスタイル（画面端まで、境界線強化） */
   .theme-row {
-    @apply flex items-center gap-3 px-3 py-3 bg-gray-800 border-b-2 border-gray-600
+    @apply flex items-center gap-2 px-3 py-3 bg-gray-800
+           border-b border-gray-500
            hover:bg-gray-750 cursor-pointer transition-colors;
   }
 
-  .theme-row:first-child {
-    @apply rounded-t-lg;
-  }
-
   .theme-row:last-child {
-    @apply rounded-b-lg border-b-0;
+    @apply border-b-0;
   }
 
   /* Rank Badge */
