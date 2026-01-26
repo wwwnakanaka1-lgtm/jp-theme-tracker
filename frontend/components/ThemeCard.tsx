@@ -60,23 +60,23 @@ export default function ThemeCard({ theme, period, rank }: ThemeCardProps) {
           )}
         </div>
 
-        {/* Sparkline - モバイルでは小さく表示 */}
+        {/* Sparkline - サイズを大きく、ラベル表示 */}
         <div className="flex-shrink-0 hidden sm:block">
           <Sparkline
             data={theme.sparkline || { data: [], period_start_index: 0 }}
             isPositive={isPositive}
-            width={80}
-            height={28}
-            showMinMax={false}
+            width={120}
+            height={45}
+            showMinMax={true}
           />
         </div>
         <div className="flex-shrink-0 sm:hidden">
           <Sparkline
             data={theme.sparkline || { data: [], period_start_index: 0 }}
             isPositive={isPositive}
-            width={50}
-            height={20}
-            showMinMax={false}
+            width={100}
+            height={40}
+            showMinMax={true}
           />
         </div>
 
@@ -117,10 +117,10 @@ export function ThemeCardSkeleton() {
         <div className="skeleton h-3 w-48" />
       </div>
       <div className="flex-shrink-0 hidden sm:block">
-        <SparklineSkeleton width={80} height={28} />
+        <SparklineSkeleton width={120} height={45} />
       </div>
       <div className="flex-shrink-0 sm:hidden">
-        <SparklineSkeleton width={50} height={20} />
+        <SparklineSkeleton width={100} height={40} />
       </div>
       <div className="skeleton h-6 w-14 sm:w-16 ml-1" />
       <div className="skeleton h-5 w-5 rounded" />

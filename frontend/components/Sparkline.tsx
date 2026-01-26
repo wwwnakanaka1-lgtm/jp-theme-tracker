@@ -19,7 +19,7 @@ export default function Sparkline({
   data,
   isPositive,
   width = 120,
-  height = 40,
+  height = 45,
   showMinMax = true,
 }: SparklineProps) {
   // データ形式の判定（配列 or オブジェクト）
@@ -65,53 +65,45 @@ export default function Sparkline({
   const minText = minValue >= 0 ? `+${minValue.toFixed(0)}%` : `${minValue.toFixed(0)}%`;
 
   return (
-    <div className="relative" style={{ width, height: showMinMax ? height + 20 : height }}>
-      {/* Max label */}
+    <div className="relative" style={{ width, height }}>
+      {/* Max label - チャート内側の左上 */}
       {showMinMax && (
-        <div
-          className="absolute left-0 text-[10px] text-green-400 font-medium"
-          style={{ top: 0 }}
-        >
+        <div className="absolute left-1 top-0 text-[9px] text-green-400 font-medium z-10 bg-gray-800/80 px-0.5 rounded">
           {maxText}
         </div>
       )}
 
-      {/* Chart */}
-      <div style={{ width, height, marginTop: showMinMax ? 10 : 0 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-            <YAxis domain={[minValue, maxValue]} hide />
-            <ReferenceLine y={0} stroke="#4b5563" strokeDasharray="2 2" />
-            {/* 期間前のライン（グレー） */}
-            <Line
-              type="monotone"
-              dataKey="prePeriod"
-              stroke={grayColor}
-              strokeWidth={1.5}
-              dot={false}
-              isAnimationActive={false}
-              connectNulls={false}
-            />
-            {/* 選択期間のライン（緑/赤） */}
-            <Line
-              type="monotone"
-              dataKey="inPeriod"
-              stroke={color}
-              strokeWidth={1.5}
-              dot={false}
-              isAnimationActive={false}
-              connectNulls={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Chart - フル高さで表示 */}
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+          <YAxis domain={[minValue, maxValue]} hide />
+          <ReferenceLine y={0} stroke="#4b5563" strokeDasharray="2 2" />
+          {/* 期間前のライン（グレー） */}
+          <Line
+            type="monotone"
+            dataKey="prePeriod"
+            stroke={grayColor}
+            strokeWidth={1.5}
+            dot={false}
+            isAnimationActive={false}
+            connectNulls={false}
+          />
+          {/* 選択期間のライン（緑/赤） */}
+          <Line
+            type="monotone"
+            dataKey="inPeriod"
+            stroke={color}
+            strokeWidth={1.5}
+            dot={false}
+            isAnimationActive={false}
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
 
-      {/* Min label */}
+      {/* Min label - チャート内側の左下 */}
       {showMinMax && (
-        <div
-          className="absolute left-0 text-[10px] text-red-400 font-medium"
-          style={{ bottom: 0 }}
-        >
+        <div className="absolute left-1 bottom-0 text-[9px] text-red-400 font-medium z-10 bg-gray-800/80 px-0.5 rounded">
           {minText}
         </div>
       )}
