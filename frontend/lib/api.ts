@@ -128,7 +128,7 @@ export interface ThemesResponse {
 export async function fetchThemes(period: string = '1mo'): Promise<Theme[]> {
   try {
     const res = await fetch(`${API_BASE}/api/themes?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 300 },  // 5分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -153,7 +153,7 @@ export async function fetchThemes(period: string = '1mo'): Promise<Theme[]> {
 export async function fetchThemesWithMeta(period: string = '1mo'): Promise<ThemesResponse> {
   try {
     const res = await fetch(`${API_BASE}/api/themes?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 300 },  // 5分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -182,7 +182,7 @@ export async function fetchThemesWithMeta(period: string = '1mo'): Promise<Theme
 export async function fetchThemeDetail(id: string, period: string = '1mo'): Promise<ThemeDetail> {
   try {
     const res = await fetch(`${API_BASE}/api/themes/${id}?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 60 },  // 1分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -206,7 +206,7 @@ export async function fetchThemeDetail(id: string, period: string = '1mo'): Prom
 export async function fetchStockDetail(code: string, period: string = '1mo'): Promise<StockDetail> {
   try {
     const res = await fetch(`${API_BASE}/api/stocks/${code}?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 60 },  // 1分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -237,7 +237,7 @@ export async function fetchStockDetail(code: string, period: string = '1mo'): Pr
 export async function fetchNikkei225(period: string = '1mo'): Promise<Nikkei225Data> {
   try {
     const res = await fetch(`${API_BASE}/api/nikkei225?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 60 },  // 1分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -325,7 +325,7 @@ export interface HeatmapResponse {
 export async function fetchHeatmapData(period: string = '1mo'): Promise<HeatmapResponse> {
   try {
     const res = await fetch(`${API_BASE}/api/heatmap?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 300 },  // 5分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -365,7 +365,7 @@ export interface SectorHeatmapResponse {
 export async function fetchSectorHeatmapData(period: string = '1mo'): Promise<SectorHeatmapResponse> {
   try {
     const res = await fetch(`${API_BASE}/api/heatmap/sector?period=${period}`, {
-      cache: 'no-store',
+      next: { revalidate: 300 },  // 5分間キャッシュ
     });
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);

@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 import pandas as pd
 
 from data.themes import get_ticker_info, get_all_tickers, THEMES
+from utils.cache import cache
 from services.calculator import (
     get_stock_indicators,
     get_price_history,
@@ -52,6 +53,12 @@ def get_nikkei225(
     Returns:
         日経225の現在値、騰落率、スパークラインデータ
     """
+    # キャッシュチェック（5分間有効）
+    cache_key = f"nikkei225:{period}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     # 騰落率計算用に選択期間のデータを取得
     df = fetch_stock_data(NIKKEI_TICKER, period)
 
@@ -97,7 +104,7 @@ def get_nikkei225(
             total_days = len(sparkline_data)
             period_start_index = max(0, total_days - period_days)
 
-    return {
+    result = {
         "name": "日経225",
         "ticker": NIKKEI_TICKER,
         "period": period,
@@ -109,6 +116,11 @@ def get_nikkei225(
             "period_start_index": period_start_index,
         },
     }
+
+    # キャッシュに保存（5分間）
+    cache.set(cache_key, result, ttl_seconds=300)
+
+    return result
 
 
 @router.get("/api/stocks/{code}")
@@ -128,6 +140,12 @@ def get_stock_detail(
     """
     # .Tが付いていなければ追加
     ticker = code if code.endswith(".T") else f"{code}.T"
+
+    # キャッシュチェック（5分間有効）
+    cache_key = f"stock_detail:{ticker}:{period}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
 
     # 株価データを取得（指標計算用）
     df = fetch_stock_data(ticker, period)
@@ -201,7 +219,7 @@ def get_stock_detail(
                     theme_daily_returns
                 )
 
-    return {
+    result = {
         "ticker": ticker,
         "name": ticker_info["name"] if ticker_info else (yf_info["name"] if yf_info else ticker),
         "description": ticker_info.get("description") if ticker_info else None,
@@ -237,6 +255,11 @@ def get_stock_detail(
             "ichimoku": ichimoku,
         },
     }
+
+    # キャッシュに保存（5分間）
+    cache.set(cache_key, result, ttl_seconds=300)
+
+    return result
 
 
 @router.get("/api/stocks/{code}/chart")

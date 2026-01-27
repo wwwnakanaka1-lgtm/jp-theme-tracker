@@ -1,38 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { fetchNikkei225, type Nikkei225Data } from '@/lib/api';
+import { useNikkei225 } from '@/lib/hooks';
+import type { PeriodValue } from '@/lib/api';
 import Sparkline, { SparklineSkeleton } from './Sparkline';
 
 interface Nikkei225CardProps {
-  period: string;
+  period: PeriodValue;
 }
 
 export default function Nikkei225Card({ period }: Nikkei225CardProps) {
-  const [data, setData] = useState<Nikkei225Data | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error, isLoading } = useNikkei225(period);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await fetchNikkei225(period);
-        setData(result);
-      } catch (err) {
-        setError('日経225の取得に失敗しました');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [period]);
-
-  if (loading) {
+  if (isLoading) {
     return <Nikkei225CardSkeleton />;
   }
 

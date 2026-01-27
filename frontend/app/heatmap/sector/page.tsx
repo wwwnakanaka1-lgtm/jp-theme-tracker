@@ -5,9 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import PeriodSelector from '@/components/PeriodSelector';
+import { useSectorHeatmapData } from '@/lib/hooks';
 import {
-  fetchSectorHeatmapData,
-  type SectorHeatmapResponse,
   type Sector,
   type SectorStock,
   type PeriodValue,
@@ -18,52 +17,24 @@ import {
 export default function SectorHeatmapPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPeriod = (searchParams.get('period') as PeriodValue) || '1mo';
+  const period = (searchParams.get('period') as PeriodValue) || '1mo';
 
-  const [data, setData] = useState<SectorHeatmapResponse | null>(null);
-  const [period, setPeriod] = useState<PeriodValue>(initialPeriod);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error, isLoading, mutate } = useSectorHeatmapData(period);
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
 
+  // データ取得後に全セクターを展開
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await fetchSectorHeatmapData(period);
-        setData(result);
-        // 最初は全セクターを展開
-        setExpandedSectors(new Set(result.sectors.map(s => s.id)));
-      } catch (err) {
-        setError('セクターヒートマップデータを取得できませんでした。');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [period]);
+    if (data) {
+      setExpandedSectors(new Set(data.sectors.map(s => s.id)));
+    }
+  }, [data]);
 
   const handlePeriodChange = (newPeriod: PeriodValue) => {
-    setPeriod(newPeriod);
     router.push(`/heatmap/sector?period=${newPeriod}`, { scroll: false });
   };
 
   const handleRetry = () => {
-    setLoading(true);
-    setError(null);
-    fetchSectorHeatmapData(period)
-      .then((result) => {
-        setData(result);
-        setExpandedSectors(new Set(result.sectors.map(s => s.id)));
-      })
-      .catch((err) => {
-        setError('セクターヒートマップデータを取得できませんでした。');
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
+    mutate();
   };
 
   const toggleSector = (sectorId: string) => {
@@ -111,7 +82,7 @@ export default function SectorHeatmapPage() {
       </div>
 
       {/* View Controls */}
-      {!loading && data && (
+      {!isLoading && data && (
         <div className="flex items-center gap-2">
           <button
             onClick={expandAll}
@@ -140,7 +111,7 @@ export default function SectorHeatmapPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-300">セクターヒートマップデータを取得できませんでした。</p>
               <button
                 onClick={handleRetry}
                 className="mt-2 flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300"
@@ -154,7 +125,7 @@ export default function SectorHeatmapPage() {
       )}
 
       {/* Loading State */}
-      {loading && (
+      {isLoading && (
         <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card">
@@ -173,7 +144,7 @@ export default function SectorHeatmapPage() {
       )}
 
       {/* Sector Heatmap Data */}
-      {!loading && data && (
+      {!isLoading && data && (
         <div className="space-y-4">
           {data.sectors.map((sector) => (
             <SectorCard

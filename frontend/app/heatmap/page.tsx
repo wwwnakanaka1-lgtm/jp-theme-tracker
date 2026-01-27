@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw, AlertCircle } from 'lucide-react';
 import PeriodSelector from '@/components/PeriodSelector';
+import { useHeatmapData } from '@/lib/hooks';
 import {
-  fetchHeatmapData,
-  type HeatmapResponse,
   type HeatmapStock,
   type PeriodValue,
   getMarketCapColor,
@@ -17,46 +15,16 @@ import {
 export default function HeatmapPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPeriod = (searchParams.get('period') as PeriodValue) || '1mo';
+  const period = (searchParams.get('period') as PeriodValue) || '1mo';
 
-  const [data, setData] = useState<HeatmapResponse | null>(null);
-  const [period, setPeriod] = useState<PeriodValue>(initialPeriod);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await fetchHeatmapData(period);
-        setData(result);
-      } catch (err) {
-        setError('ヒートマップデータを取得できませんでした。');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [period]);
+  const { data, error, isLoading, mutate } = useHeatmapData(period);
 
   const handlePeriodChange = (newPeriod: PeriodValue) => {
-    setPeriod(newPeriod);
     router.push(`/heatmap?period=${newPeriod}`, { scroll: false });
   };
 
   const handleRetry = () => {
-    setLoading(true);
-    setError(null);
-    fetchHeatmapData(period)
-      .then(setData)
-      .catch((err) => {
-        setError('ヒートマップデータを取得できませんでした。');
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
+    mutate();
   };
 
   const categories = data ? [
@@ -105,7 +73,7 @@ export default function HeatmapPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-300">ヒートマップデータを取得できませんでした。</p>
               <button
                 onClick={handleRetry}
                 className="mt-2 flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300"
@@ -119,7 +87,7 @@ export default function HeatmapPage() {
       )}
 
       {/* Loading State */}
-      {loading && (
+      {isLoading && (
         <div className="space-y-6">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="card">
@@ -135,7 +103,7 @@ export default function HeatmapPage() {
       )}
 
       {/* Heatmap Data */}
-      {!loading && data && (
+      {!isLoading && data && (
         <div className="space-y-6">
           {categories.map((category) => {
             const colors = getMarketCapColor(category.key);

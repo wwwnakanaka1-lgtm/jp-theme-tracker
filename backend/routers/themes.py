@@ -6,6 +6,7 @@ from datetime import datetime
 import pandas as pd
 
 from data.themes import THEMES, get_theme_by_id, get_ticker_name, get_ticker_description
+from utils.cache import cache
 from services.calculator import (
     calculate_theme_return,
     calculate_theme_daily_returns,
@@ -119,6 +120,12 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     Returns:
         騰落率順にソートされたテーマ一覧
     """
+    # キャッシュチェック（5分間有効）
+    cache_key = f"themes:{period}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     themes_with_returns = []
 
     for theme_id, theme_data in THEMES.items():
@@ -181,12 +188,17 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     # 騰落率で降順ソート
     themes_with_returns.sort(key=lambda x: x["change_percent"], reverse=True)
 
-    return {
+    result = {
         "period": period,
         "themes": themes_with_returns,
         "total": len(themes_with_returns),
         "last_updated": get_last_trading_date(),
     }
+
+    # キャッシュに保存（5分間）
+    cache.set(cache_key, result, ttl_seconds=300)
+
+    return result
 
 
 @router.get("/api/themes/{theme_id}")
@@ -204,6 +216,12 @@ def get_theme_detail(
     Returns:
         テーマ詳細と構成銘柄情報
     """
+    # キャッシュチェック（5分間有効）
+    cache_key = f"theme_detail:{theme_id}:{period}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     theme = get_theme_by_id(theme_id)
 
     if not theme:
@@ -270,7 +288,7 @@ def get_theme_detail(
     # 騰落率で降順ソート
     stocks.sort(key=lambda x: x["change_percent"], reverse=True)
 
-    return {
+    result = {
         "id": theme_id,
         "name": theme["name"],
         "description": theme["description"],
@@ -279,6 +297,11 @@ def get_theme_detail(
         "stocks": stocks,
         "stock_count": len(stocks),
     }
+
+    # キャッシュに保存（5分間）
+    cache.set(cache_key, result, ttl_seconds=300)
+
+    return result
 
 
 @router.get("/api/themes/{theme_id}/history")
@@ -343,6 +366,12 @@ def get_heatmap_data(
     Returns:
         時価総額カテゴリ別の銘柄一覧
     """
+    # キャッシュチェック（5分間有効）
+    cache_key = f"heatmap:{period}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     from services.data_fetcher import get_market_cap, classify_market_cap
 
     stocks_by_category = {
@@ -389,7 +418,7 @@ def get_heatmap_data(
             reverse=True
         )
 
-    return {
+    result = {
         "period": period,
         "categories": {
             "mega": {
@@ -431,6 +460,11 @@ def get_heatmap_data(
         "last_updated": get_last_trading_date(),
     }
 
+    # キャッシュに保存（5分間）
+    cache.set(cache_key, result, ttl_seconds=300)
+
+    return result
+
 
 @router.get("/api/heatmap/sector")
 def get_sector_heatmap_data(
@@ -445,6 +479,12 @@ def get_sector_heatmap_data(
     Returns:
         セクター別の銘柄一覧とセクター平均騰落率
     """
+    # キャッシュチェック（5分間有効）
+    cache_key = f"heatmap_sector:{period}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     sectors = []
 
     for theme_id, theme_data in THEMES.items():
@@ -483,11 +523,16 @@ def get_sector_heatmap_data(
     # セクター平均騰落率でソート
     sectors.sort(key=lambda x: x["average_change"], reverse=True)
 
-    return {
+    result = {
         "period": period,
         "sectors": sectors,
         "total_sectors": len(sectors),
         "last_updated": get_last_trading_date(),
     }
+
+    # キャッシュに保存（5分間）
+    cache.set(cache_key, result, ttl_seconds=300)
+
+    return result
 
 

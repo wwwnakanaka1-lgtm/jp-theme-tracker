@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { mutate } from 'swr';
 import type { Theme } from '@/lib/api';
-import { getThemeColor } from '@/lib/api';
+import { getThemeColor, fetchThemeDetail } from '@/lib/api';
 import Sparkline, { SparklineSkeleton } from './Sparkline';
 
 interface ThemeCardProps {
@@ -17,8 +18,17 @@ export default function ThemeCard({ theme, period, rank }: ThemeCardProps) {
   const isPositive = changePercent >= 0;
   const themeColor = getThemeColor(theme.id);
 
+  // ホバー時にテーマ詳細をプリフェッチ
+  const handleMouseEnter = () => {
+    mutate(
+      ['theme', theme.id, period],
+      fetchThemeDetail(theme.id, period),
+      { revalidate: false }
+    );
+  };
+
   return (
-    <Link href={`/theme/${theme.id}?period=${period}`}>
+    <Link href={`/theme/${theme.id}?period=${period}`} onMouseEnter={handleMouseEnter}>
       <div className="theme-row group">
         {/* Rank */}
         {rank !== undefined && (

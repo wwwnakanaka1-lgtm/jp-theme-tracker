@@ -22,7 +22,8 @@ import type {
 const SWR_OPTIONS = {
   revalidateOnFocus: false,
   revalidateOnReconnect: false,
-  dedupingInterval: 60000, // 1分間は同じリクエストを重複させない
+  dedupingInterval: 300000, // 5分間は同じリクエストを重複させない
+  revalidateIfStale: false, // 古くても再取得しない
 };
 
 export function useThemes(period: PeriodValue) {

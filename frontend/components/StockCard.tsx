@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { mutate } from 'swr';
 import type { Stock } from '@/lib/api';
-import { getMarketCapColor, getThemeColor } from '@/lib/api';
+import { getMarketCapColor, getThemeColor, fetchStockDetail } from '@/lib/api';
 import Sparkline, { SparklineSkeleton } from './Sparkline';
 
 interface StockCardProps {
@@ -20,8 +21,17 @@ export default function StockCard({ stock, period, rank, themeId, themeName }: S
   const marketCapColors = stock.market_cap_category ? getMarketCapColor(stock.market_cap_category.id) : null;
   const themeColor = themeId ? getThemeColor(themeId) : null;
 
+  // ホバー時に銘柄詳細をプリフェッチ
+  const handleMouseEnter = () => {
+    mutate(
+      ['stock', stock.code, period],
+      fetchStockDetail(stock.code, period),
+      { revalidate: false }
+    );
+  };
+
   return (
-    <Link href={`/stock/${stock.code}?period=${period}`}>
+    <Link href={`/stock/${stock.code}?period=${period}`} onMouseEnter={handleMouseEnter}>
       <div className="theme-row group">
         {/* Rank */}
         {rank !== undefined && (
