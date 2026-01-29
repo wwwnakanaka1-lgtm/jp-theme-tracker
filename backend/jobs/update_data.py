@@ -193,6 +193,119 @@ def update_themes_data():
     logger.info("=" * 60)
 
 
+def update_theme_details_data():
+    """全テーマ詳細データを事前計算"""
+    logger.info("=" * 60)
+    logger.info("Starting theme details data update job...")
+    start_time = datetime.now()
+
+    # 1. 全銘柄を一度に取得（重複なし）
+    all_tickers = get_all_tickers()
+    logger.info(f"Total unique tickers: {len(all_tickers)}")
+
+    # 2. 各期間のデータを並列取得
+    logger.info("Fetching data for all periods...")
+    all_data = {}
+    for period in PERIODS:
+        logger.info(f"  Fetching period: {period}")
+        all_data[period] = fetch_batch_parallel(all_tickers, period, max_workers=15)
+
+    # 3. 1年データ（スパークライン用）
+    sparkline_data = all_data.get("1y", {})
+
+    # 4. 各テーマ×各期間のデータを計算・保存
+    for theme_id, theme_info in THEMES.items():
+        logger.info(f"Processing theme: {theme_id}")
+        tickers = theme_info["tickers"]
+
+        for period in PERIODS:
+            period_data = all_data[period]
+            day_data = all_data["1d"] if period != "1d" else {}
+
+            # 該当テーマの銘柄データを抽出
+            theme_stock_data = {t: period_data[t] for t in tickers if t in period_data}
+
+            # テーマの騰落率計算
+            theme_return, stock_returns = calculate_return_from_data(theme_stock_data)
+
+            # 1日騰落率
+            theme_return_1d = None
+            stock_returns_1d = {}
+            if period != "1d" and day_data:
+                theme_stock_data_1d = {t: day_data[t] for t in tickers if t in day_data}
+                theme_return_1d, stock_returns_1d = calculate_return_from_data(theme_stock_data_1d)
+
+            # テーマの日次リターン（スパークライン・ベータ計算用）
+            theme_sparkline_data = {t: sparkline_data[t] for t in tickers if t in sparkline_data}
+            theme_daily_returns = calculate_theme_daily_returns_from_data(theme_sparkline_data)
+            theme_sparkline = generate_sparkline(theme_daily_returns, period)
+
+            # 各銘柄の詳細情報
+            stocks = []
+            for ticker in tickers:
+                stock_return = stock_returns.get(ticker, 0.0)
+                stock_return_1d = stock_returns_1d.get(ticker) if period != "1d" else None
+
+                # 個別株の日次リターン
+                stock_df = sparkline_data.get(ticker)
+                stock_daily_returns = calculate_daily_returns(stock_df) if stock_df is not None else None
+
+                # ベータ・アルファを計算
+                beta_alpha = {"beta": None, "alpha": None, "r_squared": None}
+                if stock_daily_returns is not None and not stock_daily_returns.empty and not theme_daily_returns.empty:
+                    from services.calculator import calculate_beta_alpha
+                    beta_alpha = calculate_beta_alpha(stock_daily_returns, theme_daily_returns)
+
+                # 時価総額を取得
+                market_cap_data = get_market_cap(ticker)
+
+                # スパークラインデータ
+                stock_sparkline = generate_sparkline(stock_daily_returns, period) if stock_daily_returns is not None else {"data": [], "period_start_index": 0}
+
+                stocks.append({
+                    "code": ticker,
+                    "name": get_ticker_name(theme_id, ticker),
+                    "description": get_ticker_description(theme_id, ticker),
+                    "change_percent": round(stock_return, 2),
+                    "change_percent_1d": round(stock_return_1d, 2) if stock_return_1d is not None else None,
+                    "beta": round(beta_alpha["beta"], 3) if beta_alpha["beta"] is not None else None,
+                    "alpha": round(beta_alpha["alpha"], 3) if beta_alpha["alpha"] is not None else None,
+                    "r_squared": round(beta_alpha["r_squared"], 3) if beta_alpha["r_squared"] is not None else None,
+                    "market_cap": market_cap_data.get("market_cap"),
+                    "market_cap_category": market_cap_data.get("market_cap_category"),
+                    "sparkline": stock_sparkline,
+                })
+
+            # 騰落率でソート
+            stocks.sort(key=lambda x: x["change_percent"], reverse=True)
+
+            # テーマ詳細結果
+            result = {
+                "id": theme_id,
+                "name": theme_info["name"],
+                "description": theme_info["description"],
+                "change_percent": theme_return,
+                "change_percent_1d": theme_return_1d,
+                "stock_count": len(tickers),
+                "sparkline": theme_sparkline,
+                "stocks": stocks,
+                "period": period,
+                "last_updated": get_last_trading_date(),
+                "generated_at": datetime.now().isoformat(),
+            }
+
+            # JSONファイルに保存
+            output_path = PRECOMPUTED_DIR / f"theme_{theme_id}_{period}.json"
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"  Saved theme detail: {theme_id}")
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Theme details data update completed in {elapsed:.1f} seconds")
+    logger.info("=" * 60)
+
+
 def update_heatmap_data():
     """ヒートマップデータを事前計算"""
     logger.info("Starting heatmap data update...")
@@ -329,6 +442,7 @@ def update_all_data(force: bool = False):
     """
     try:
         update_themes_data()
+        update_theme_details_data()
         # update_heatmap_data()  # 必要に応じて有効化
         logger.info("All data update completed successfully!")
     except Exception as e:

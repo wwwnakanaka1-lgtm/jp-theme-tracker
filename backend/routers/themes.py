@@ -267,7 +267,7 @@ def get_theme_detail(
     period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo, 6mo, 1y")
 ):
     """
-    テーマ詳細を取得（構成銘柄の騰落率含む）
+    テーマ詳細を取得（構成銘柄の騰落率含む）（爆速版）
 
     Args:
         theme_id: テーマID
@@ -276,12 +276,25 @@ def get_theme_detail(
     Returns:
         テーマ詳細と構成銘柄情報
     """
-    # キャッシュチェック（5分間有効）
+    # 1. 事前計算済みJSONを確認（最優先）
+    json_path = PRECOMPUTED_DIR / f"theme_{theme_id}_{period}.json"
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.debug(f"Serving precomputed theme detail: {json_path.name}")
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to read precomputed theme detail JSON: {e}")
+
+    # 2. キャッシュチェック（5分間有効）
     cache_key = f"theme_detail:{theme_id}:{period}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
+    # 3. フォールバック: リアルタイム計算
+    logger.info(f"Fallback to realtime calculation for theme: {theme_id}, period: {period}")
     theme = get_theme_by_id(theme_id)
 
     if not theme:
