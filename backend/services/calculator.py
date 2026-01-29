@@ -130,6 +130,63 @@ def calculate_theme_return(
     return round(theme_return, 2), returns
 
 
+def calculate_return_from_data(
+    stock_data: dict[str, pd.DataFrame]
+) -> tuple[float, dict]:
+    """
+    既に取得済みのデータから騰落率を計算
+
+    Args:
+        stock_data: {ticker: DataFrame} の辞書
+
+    Returns:
+        tuple: (テーマ騰落率, 銘柄ごとの騰落率dict)
+    """
+    if not stock_data:
+        return 0.0, {}
+
+    returns = {}
+    for ticker, df in stock_data.items():
+        if df is not None:
+            returns[ticker] = calculate_return(df)
+
+    if not returns:
+        return 0.0, {}
+
+    theme_return = sum(returns.values()) / len(returns)
+    return round(theme_return, 2), returns
+
+
+def calculate_theme_daily_returns_from_data(
+    stock_data: dict[str, pd.DataFrame]
+) -> pd.Series:
+    """
+    既に取得済みのデータからテーマの日次リターンを計算
+
+    Args:
+        stock_data: {ticker: DataFrame} の辞書
+
+    Returns:
+        日次リターンのSeries（%）
+    """
+    if not stock_data:
+        return pd.Series(dtype=float)
+
+    all_returns = []
+    for df in stock_data.values():
+        if df is not None:
+            daily_ret = calculate_daily_returns(df)
+            if not daily_ret.empty:
+                all_returns.append(daily_ret)
+
+    if not all_returns:
+        return pd.Series(dtype=float)
+
+    # 全銘柄の日次リターンをDataFrameに結合し、平均を計算
+    combined = pd.concat(all_returns, axis=1)
+    return combined.mean(axis=1)
+
+
 def calculate_theme_daily_returns(
     tickers: list[str],
     period: str = "1mo"

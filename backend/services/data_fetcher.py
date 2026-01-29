@@ -1,7 +1,9 @@
-"""株価データ取得モジュール（yfinance + JSONキャッシュ + メモリキャッシュ）"""
+"""株価データ取得モジュール（yfinance + JSONキャッシュ + メモリキャッシュ + 並列処理）"""
 
 import json
+import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -9,6 +11,9 @@ from typing import Dict, Optional
 
 import pandas as pd
 import yfinance as yf
+
+# ロガー設定
+logger = logging.getLogger(__name__)
 
 # キャッシュディレクトリ
 CACHE_DIR = Path(__file__).parent.parent.parent / "cache"
@@ -161,7 +166,7 @@ def fetch_stock_data(ticker: str, period: str = "1mo") -> Optional[pd.DataFrame]
 
 def fetch_batch(tickers: list[str], period: str = "1mo") -> Dict[str, pd.DataFrame]:
     """
-    複数銘柄の株価データをバッチ取得
+    複数銘柄の株価データをバッチ取得（並列処理版を使用）
 
     Args:
         tickers: 銘柄コードのリスト
@@ -170,14 +175,95 @@ def fetch_batch(tickers: list[str], period: str = "1mo") -> Dict[str, pd.DataFra
     Returns:
         Dict[ticker, DataFrame]
     """
+    # 並列処理版を呼び出す
+    return fetch_batch_parallel(tickers, period)
+
+
+def fetch_batch_parallel(
+    tickers: list[str],
+    period: str = "1mo",
+    max_workers: int = 10
+) -> Dict[str, pd.DataFrame]:
+    """
+    複数銘柄を並列に取得（10並列）
+
+    Args:
+        tickers: 銘柄コードのリスト
+        period: 取得期間
+        max_workers: 最大並列スレッド数
+
+    Returns:
+        Dict[ticker, DataFrame]
+    """
     result = {}
 
-    for ticker in tickers:
-        df = fetch_stock_data(ticker, period)
-        if df is not None:
-            result[ticker] = df
+    # 重複除去
+    unique_tickers = list(set(tickers))
+
+    if not unique_tickers:
+        return result
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(fetch_stock_data, ticker, period): ticker
+            for ticker in unique_tickers
+        }
+        for future in as_completed(futures):
+            ticker = futures[future]
+            try:
+                df = future.result(timeout=30)
+                if df is not None and not df.empty:
+                    result[ticker] = df
+            except Exception as e:
+                logger.warning(f"Failed to fetch {ticker}: {e}")
 
     return result
+
+
+def fetch_batch_yfinance(tickers: list[str], period: str = "1mo") -> Dict[str, pd.DataFrame]:
+    """
+    yfinanceのバッチ機能を使用（最も高速）
+
+    Args:
+        tickers: 銘柄コードのリスト
+        period: 取得期間
+
+    Returns:
+        Dict[ticker, DataFrame]
+    """
+    if not tickers:
+        return {}
+
+    unique_tickers = list(set(tickers))
+
+    try:
+        data = yf.download(
+            tickers=unique_tickers,
+            period=period,
+            group_by='ticker',
+            threads=True,
+            progress=False
+        )
+
+        result = {}
+        if len(unique_tickers) == 1:
+            # 単一銘柄の場合はMultiIndexにならない
+            if not data.empty:
+                result[unique_tickers[0]] = data
+        else:
+            for ticker in unique_tickers:
+                try:
+                    if ticker in data.columns.get_level_values(0):
+                        df = data[ticker].dropna()
+                        if not df.empty:
+                            result[ticker] = df
+                except Exception:
+                    pass
+        return result
+    except Exception as e:
+        logger.error(f"Batch download failed: {e}")
+        # フォールバック: 並列処理版を使用
+        return fetch_batch_parallel(unique_tickers, period)
 
 
 def clear_cache():

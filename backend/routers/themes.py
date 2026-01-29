@@ -5,17 +5,19 @@ from typing import Optional
 from datetime import datetime
 import pandas as pd
 
-from data.themes import THEMES, get_theme_by_id, get_ticker_name, get_ticker_description
+from data.themes import THEMES, get_theme_by_id, get_ticker_name, get_ticker_description, get_all_tickers
 from utils.cache import cache
 from services.calculator import (
     calculate_theme_return,
     calculate_theme_daily_returns,
     calculate_return,
+    calculate_return_from_data,
+    calculate_theme_daily_returns_from_data,
     calculate_daily_returns,
     calculate_beta_alpha,
     get_stock_indicators,
 )
-from services.data_fetcher import fetch_stock_data, get_market_cap
+from services.data_fetcher import fetch_stock_data, fetch_batch_parallel, get_market_cap
 
 router = APIRouter()
 
@@ -83,13 +85,24 @@ def get_stock_sparkline(ticker: str, period: str) -> dict:
     }
 
 
-def get_theme_sparkline(tickers: list[str], period: str) -> dict:
+def get_theme_sparkline(tickers: list[str], period: str, stock_data_1y: dict = None) -> dict:
     """テーマのスパークラインデータを取得（累積リターン）
 
     常に1年間のデータを返し、選択期間の開始インデックスも返す
+
+    Args:
+        tickers: 銘柄コードリスト
+        period: 選択期間（開始インデックス計算用）
+        stock_data_1y: 1年分の取得済みデータ（省略時は個別取得）
     """
-    # 常に1年分のデータを取得
-    daily_returns = calculate_theme_daily_returns(tickers, "1y")
+    # 既に取得済みのデータがあればそれを使用
+    if stock_data_1y is not None:
+        # 該当テーマの銘柄データを抽出
+        theme_stock_data = {t: stock_data_1y[t] for t in tickers if t in stock_data_1y}
+        daily_returns = calculate_theme_daily_returns_from_data(theme_stock_data)
+    else:
+        # 常に1年分のデータを取得（フォールバック）
+        daily_returns = calculate_theme_daily_returns(tickers, "1y")
 
     if daily_returns.empty:
         return {"data": [], "period_start_index": 0}
@@ -117,6 +130,8 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     """
     全テーマの騰落率ランキングを取得
 
+    全銘柄を一度に並列取得し、重複を排除して効率化
+
     Returns:
         騰落率順にソートされたテーマ一覧
     """
@@ -126,22 +141,36 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     if cached:
         return cached
 
+    # 1. 全テーマの全銘柄を重複なしで取得
+    all_tickers = get_all_tickers()
+
+    # 2. 並列で一括取得（選択期間）
+    all_data = fetch_batch_parallel(all_tickers, period, max_workers=15)
+
+    # 1日データも取得（period != "1d" の場合）
+    all_data_1d = {}
+    if period != "1d":
+        all_data_1d = fetch_batch_parallel(all_tickers, "1d", max_workers=15)
+
+    # スパークライン用に1年分のデータも取得
+    all_data_1y = fetch_batch_parallel(all_tickers, "1y", max_workers=15)
+
     themes_with_returns = []
 
+    # 3. テーマごとにデータを割り当てて計算
     for theme_id, theme_data in THEMES.items():
         try:
-            theme_return, stock_returns = calculate_theme_return(
-                theme_data["tickers"],
-                period
-            )
+            # 該当テーマの銘柄データを抽出
+            theme_stock_data = {t: all_data[t] for t in theme_data["tickers"] if t in all_data}
 
-            # 1日騰落率も取得（選択期間が1d以外の場合）
+            # 騰落率計算（データから直接計算）
+            theme_return, stock_returns = calculate_return_from_data(theme_stock_data)
+
+            # 1日騰落率
             change_percent_1d = None
-            if period != "1d":
-                theme_return_1d, _ = calculate_theme_return(
-                    theme_data["tickers"],
-                    "1d"
-                )
+            if period != "1d" and all_data_1d:
+                theme_stock_data_1d = {t: all_data_1d[t] for t in theme_data["tickers"] if t in all_data_1d}
+                theme_return_1d, _ = calculate_return_from_data(theme_stock_data_1d)
                 change_percent_1d = theme_return_1d
 
             # Top 3 stocks by change_percent
@@ -158,8 +187,8 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
                     "change_percent": round(change, 2),
                 })
 
-            # スパークラインデータを取得
-            sparkline = get_theme_sparkline(theme_data["tickers"], period)
+            # スパークラインデータを取得（1年分の取得済みデータを使用）
+            sparkline = get_theme_sparkline(theme_data["tickers"], period, all_data_1y)
 
             themes_with_returns.append({
                 "id": theme_id,
@@ -181,7 +210,7 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
                 "change_percent_1d": None,
                 "stock_count": len(theme_data["tickers"]),
                 "top_stocks": [],
-                "sparkline": [],
+                "sparkline": {"data": [], "period_start_index": 0},
                 "error": str(e),
             })
 
