@@ -1,5 +1,12 @@
-"""テーマ関連APIルーター"""
+"""テーマ関連APIルーター（爆速版）
 
+事前計算済みJSONからデータを読み込み、即座に応答
+フォールバック: JSONがなければリアルタイム計算
+"""
+
+import json
+import logging
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from datetime import datetime
@@ -19,7 +26,12 @@ from services.calculator import (
 )
 from services.data_fetcher import fetch_stock_data, fetch_batch_parallel, get_market_cap
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+# 事前計算済みデータのディレクトリ
+PRECOMPUTED_DIR = Path(__file__).parent.parent / "precomputed"
 
 
 def get_last_trading_date() -> str | None:
@@ -128,19 +140,38 @@ def get_theme_sparkline(tickers: list[str], period: str, stock_data_1y: dict = N
 @router.get("/api/themes")
 def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo, 6mo, 1y")):
     """
-    全テーマの騰落率ランキングを取得
+    全テーマの騰落率ランキングを取得（爆速版）
 
-    全銘柄を一度に並列取得し、重複を排除して効率化
+    事前計算済みJSONを優先的に使用し、即座に応答
+    JSONがなければフォールバックでリアルタイム計算
 
     Returns:
         騰落率順にソートされたテーマ一覧
     """
-    # キャッシュチェック（5分間有効）
+    # 1. 事前計算済みJSONを確認（最優先）
+    json_path = PRECOMPUTED_DIR / f"themes_{period}.json"
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.debug(f"Serving precomputed data: {json_path.name}")
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to read precomputed JSON: {e}")
+
+    # 2. メモリキャッシュをチェック（5分間有効）
     cache_key = f"themes:{period}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
+    # 3. フォールバック: リアルタイム計算
+    logger.info(f"Fallback to realtime calculation for period: {period}")
+    return _calculate_themes_realtime(period)
+
+
+def _calculate_themes_realtime(period: str):
+    """リアルタイムでテーマデータを計算（フォールバック用）"""
     # 1. 全テーマの全銘柄を重複なしで取得
     all_tickers = get_all_tickers()
 
@@ -225,7 +256,7 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     }
 
     # キャッシュに保存（5分間）
-    cache.set(cache_key, result, ttl_seconds=300)
+    cache.set(f"themes:{period}", result, ttl_seconds=300)
 
     return result
 
@@ -387,7 +418,9 @@ def get_heatmap_data(
     period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo, 6mo, 1y")
 ):
     """
-    時価総額別ヒートマップデータを取得
+    時価総額別ヒートマップデータを取得（爆速版）
+
+    事前計算済みJSONを優先的に使用
 
     Args:
         period: 取得期間
@@ -395,12 +428,25 @@ def get_heatmap_data(
     Returns:
         時価総額カテゴリ別の銘柄一覧
     """
-    # キャッシュチェック（5分間有効）
+    # 1. 事前計算済みJSONを確認（最優先）
+    json_path = PRECOMPUTED_DIR / f"heatmap_{period}.json"
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.debug(f"Serving precomputed heatmap: {json_path.name}")
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to read precomputed heatmap JSON: {e}")
+
+    # 2. キャッシュチェック（5分間有効）
     cache_key = f"heatmap:{period}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
+    # 3. フォールバック: リアルタイム計算
+    logger.info(f"Fallback to realtime heatmap calculation for period: {period}")
     from services.data_fetcher import get_market_cap, classify_market_cap
 
     stocks_by_category = {
@@ -500,7 +546,7 @@ def get_sector_heatmap_data(
     period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo, 6mo, 1y")
 ):
     """
-    セクター（テーマ）別ヒートマップデータを取得
+    セクター（テーマ）別ヒートマップデータを取得（爆速版）
 
     Args:
         period: 取得期間
@@ -508,11 +554,25 @@ def get_sector_heatmap_data(
     Returns:
         セクター別の銘柄一覧とセクター平均騰落率
     """
-    # キャッシュチェック（5分間有効）
+    # 1. 事前計算済みJSONを確認（最優先）
+    json_path = PRECOMPUTED_DIR / f"heatmap_sector_{period}.json"
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.debug(f"Serving precomputed sector heatmap: {json_path.name}")
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to read precomputed sector heatmap JSON: {e}")
+
+    # 2. キャッシュチェック（5分間有効）
     cache_key = f"heatmap_sector:{period}"
     cached = cache.get(cache_key)
     if cached:
         return cached
+
+    # 3. フォールバック: リアルタイム計算
+    logger.info(f"Fallback to realtime sector heatmap calculation for period: {period}")
 
     sectors = []
 
