@@ -51,12 +51,13 @@ def get_period_days(period: str) -> int:
 
 
 def get_last_trading_date() -> str | None:
-    """最後の取引日を取得"""
+    """最後の取引日を取得（日本市場の終値時刻15:00を付与）"""
     try:
         df = fetch_stock_data("^N225", "5d")
         if df is not None and not df.empty:
             last_date = df.index[-1]
-            return last_date.strftime("%Y-%m-%d %H:%M")
+            # yfinanceの日足データは時刻がないため、日本市場の終値時刻15:00を付与
+            return last_date.strftime("%Y-%m-%d") + " 15:00"
     except Exception:
         pass
     return None
