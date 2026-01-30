@@ -170,6 +170,37 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     return _calculate_themes_realtime(period)
 
 
+@router.post("/api/refresh")
+def trigger_manual_refresh():
+    """
+    手動データ更新エンドポイント
+
+    全テーマデータを即座に更新する。
+    更新処理には30秒〜数分かかる場合がある。
+
+    Returns:
+        更新結果のステータス
+    """
+    import time
+    from jobs.update_data import update_all_data
+
+    start_time = time.time()
+
+    try:
+        update_all_data(force=True)
+        elapsed = time.time() - start_time
+
+        return {
+            "status": "success",
+            "message": "データ更新完了",
+            "elapsed_seconds": round(elapsed, 1),
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Manual refresh failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def _calculate_themes_realtime(period: str):
     """リアルタイムでテーマデータを計算（フォールバック用）"""
     # 1. 全テーマの全銘柄を重複なしで取得

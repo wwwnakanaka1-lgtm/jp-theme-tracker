@@ -101,7 +101,11 @@ export default function HomePage() {
       {!loading && !error && themes.length > 0 && (
         <div className="space-y-4">
           {/* Market Header */}
-          <MarketHeader lastUpdated={response?.last_updated ?? null} period={period} />
+          <MarketHeader
+            lastUpdated={response?.last_updated ?? null}
+            period={period}
+            onRefreshComplete={() => mutate()}
+          />
 
           {/* Top Themes */}
           <div>

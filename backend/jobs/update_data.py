@@ -8,6 +8,7 @@
 import json
 import logging
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -30,6 +31,9 @@ PRECOMPUTED_DIR.mkdir(exist_ok=True)
 
 # サポートする期間
 PERIODS = ["1d", "5d", "10d", "1mo", "3mo", "6mo", "1y"]
+
+# 同時実行防止用ロック
+_update_lock = threading.Lock()
 
 
 def get_period_days(period: str) -> int:
@@ -435,11 +439,20 @@ def is_data_fresh(max_age_minutes: int = 60) -> bool:
 
 
 def update_all_data(force: bool = False):
-    """全データを更新するメイン関数
+    """全データを更新するメイン関数（ロック付き）
 
     Args:
         force: Trueの場合、データが新鮮でも強制更新
+
+    Raises:
+        Exception: 更新処理が既に実行中の場合
     """
+    # ロック取得を試みる（ノンブロッキング）
+    acquired = _update_lock.acquire(blocking=False)
+    if not acquired:
+        logger.warning("Update already in progress, skipping")
+        raise Exception("更新処理が既に実行中です")
+
     try:
         update_themes_data()
         update_theme_details_data()
@@ -448,6 +461,8 @@ def update_all_data(force: bool = False):
     except Exception as e:
         logger.error(f"Data update failed: {e}")
         raise
+    finally:
+        _update_lock.release()
 
 
 def update_if_stale(max_age_minutes: int = 60):

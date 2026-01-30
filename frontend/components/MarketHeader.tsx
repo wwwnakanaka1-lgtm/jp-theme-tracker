@@ -1,10 +1,13 @@
 'use client';
 
-import { PERIODS, type PeriodValue } from '@/lib/api';
+import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { PERIODS, type PeriodValue, triggerDataRefresh } from '@/lib/api';
 
 interface MarketHeaderProps {
   lastUpdated: string | null;
   period: PeriodValue;
+  onRefreshComplete?: () => void;
 }
 
 function getTimeAgo(dateStr: string | null): string {
@@ -48,9 +51,28 @@ function getPeriodLabel(period: PeriodValue): string {
   return periodInfo?.label || period;
 }
 
-export default function MarketHeader({ lastUpdated, period }: MarketHeaderProps) {
+export default function MarketHeader({ lastUpdated, period, onRefreshComplete }: MarketHeaderProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
   const formattedDate = formatDate(lastUpdated);
   const timeAgo = getTimeAgo(lastUpdated);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      await triggerDataRefresh();
+      onRefreshComplete?.();
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : '更新失敗');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-between text-sm text-gray-400 mb-2">
@@ -59,6 +81,25 @@ export default function MarketHeader({ lastUpdated, period }: MarketHeaderProps)
           <span>
             終値：{formattedDate} {timeAgo && `(${timeAgo})`}
           </span>
+        )}
+
+        {/* 更新ボタン */}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+            isRefreshing
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+          title="最新データに更新（30秒〜数分）"
+        >
+          <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? '更新中...' : '更新'}
+        </button>
+
+        {refreshError && (
+          <span className="text-red-400 text-xs">{refreshError}</span>
         )}
       </div>
       <div className="flex items-center gap-4">
