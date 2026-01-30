@@ -456,7 +456,7 @@ def update_all_data(force: bool = False):
     try:
         update_themes_data()
         update_theme_details_data()
-        # update_heatmap_data()  # 必要に応じて有効化
+        update_heatmap_data()  # ヒートマップ事前計算を有効化
         logger.info("All data update completed successfully!")
     except Exception as e:
         logger.error(f"Data update failed: {e}")
@@ -478,6 +478,139 @@ def update_if_stale(max_age_minutes: int = 60):
 
     logger.info("Precomputed data is stale or missing, running full update...")
     update_all_data()
+
+
+def update_single_stock(code: str):
+    """個別銘柄のデータを更新
+
+    指定された銘柄コードが含まれる全テーマのデータを再計算して保存する
+
+    Args:
+        code: 銘柄コード（例: 7203.T または 7203）
+    """
+    # .Tが付いていなければ追加
+    ticker = code if code.endswith(".T") else f"{code}.T"
+
+    logger.info(f"Starting single stock update for: {ticker}")
+
+    # この銘柄が含まれるテーマを検索
+    themes_containing_stock = []
+    for theme_id, theme_info in THEMES.items():
+        if ticker in theme_info["tickers"]:
+            themes_containing_stock.append(theme_id)
+
+    if not themes_containing_stock:
+        logger.warning(f"Stock {ticker} not found in any theme")
+        raise ValueError(f"銘柄 {ticker} はどのテーマにも含まれていません")
+
+    logger.info(f"Stock {ticker} found in themes: {themes_containing_stock}")
+
+    # 対象テーマの全銘柄を収集
+    tickers_to_update = set()
+    for theme_id in themes_containing_stock:
+        tickers_to_update.update(THEMES[theme_id]["tickers"])
+
+    tickers_list = list(tickers_to_update)
+    logger.info(f"Total tickers to update: {len(tickers_list)}")
+
+    # 各期間のデータを取得
+    all_data = {}
+    for period in PERIODS:
+        logger.info(f"  Fetching period: {period}")
+        all_data[period] = fetch_batch_parallel(tickers_list, period, max_workers=15)
+
+    # スパークライン用1年データ
+    sparkline_data = all_data.get("1y", {})
+
+    # 各テーマ×各期間のデータを再計算して保存
+    for theme_id in themes_containing_stock:
+        theme_info = THEMES[theme_id]
+        tickers = theme_info["tickers"]
+
+        for period in PERIODS:
+            period_data = all_data[period]
+            day_data = all_data["1d"] if period != "1d" else {}
+
+            # 該当テーマの銘柄データを抽出
+            theme_stock_data = {t: period_data[t] for t in tickers if t in period_data}
+
+            # テーマの騰落率計算
+            theme_return, stock_returns = calculate_return_from_data(theme_stock_data)
+
+            # 1日騰落率
+            theme_return_1d = None
+            stock_returns_1d = {}
+            if period != "1d" and day_data:
+                theme_stock_data_1d = {t: day_data[t] for t in tickers if t in day_data}
+                theme_return_1d, stock_returns_1d = calculate_return_from_data(theme_stock_data_1d)
+
+            # テーマの日次リターン（スパークライン・ベータ計算用）
+            theme_sparkline_data = {t: sparkline_data[t] for t in tickers if t in sparkline_data}
+            theme_daily_returns = calculate_theme_daily_returns_from_data(theme_sparkline_data)
+            theme_sparkline = generate_sparkline(theme_daily_returns, period)
+
+            # 各銘柄の詳細情報
+            stocks = []
+            for t in tickers:
+                stock_return = stock_returns.get(t, 0.0)
+                stock_return_1d = stock_returns_1d.get(t) if period != "1d" else None
+
+                # 個別株の日次リターン
+                stock_df = sparkline_data.get(t)
+                stock_daily_returns = calculate_daily_returns(stock_df) if stock_df is not None else None
+
+                # ベータ・アルファを計算
+                beta_alpha = {"beta": None, "alpha": None, "r_squared": None}
+                if stock_daily_returns is not None and not stock_daily_returns.empty and not theme_daily_returns.empty:
+                    from services.calculator import calculate_beta_alpha
+                    beta_alpha = calculate_beta_alpha(stock_daily_returns, theme_daily_returns)
+
+                # 時価総額を取得
+                market_cap_data = get_market_cap(t)
+
+                # スパークラインデータ
+                stock_sparkline = generate_sparkline(stock_daily_returns, period) if stock_daily_returns is not None else {"data": [], "period_start_index": 0}
+
+                stocks.append({
+                    "code": t,
+                    "name": get_ticker_name(theme_id, t),
+                    "description": get_ticker_description(theme_id, t),
+                    "change_percent": round(stock_return, 2),
+                    "change_percent_1d": round(stock_return_1d, 2) if stock_return_1d is not None else None,
+                    "beta": round(beta_alpha["beta"], 3) if beta_alpha["beta"] is not None else None,
+                    "alpha": round(beta_alpha["alpha"], 3) if beta_alpha["alpha"] is not None else None,
+                    "r_squared": round(beta_alpha["r_squared"], 3) if beta_alpha["r_squared"] is not None else None,
+                    "market_cap": market_cap_data.get("market_cap"),
+                    "market_cap_category": market_cap_data.get("market_cap_category"),
+                    "sparkline": stock_sparkline,
+                })
+
+            # 騰落率でソート
+            stocks.sort(key=lambda x: x["change_percent"], reverse=True)
+
+            # テーマ詳細結果
+            result = {
+                "id": theme_id,
+                "name": theme_info["name"],
+                "description": theme_info["description"],
+                "change_percent": theme_return,
+                "change_percent_1d": theme_return_1d,
+                "stock_count": len(tickers),
+                "sparkline": theme_sparkline,
+                "stocks": stocks,
+                "period": period,
+                "last_updated": get_last_trading_date(),
+                "generated_at": datetime.now().isoformat(),
+            }
+
+            # JSONファイルに保存
+            output_path = PRECOMPUTED_DIR / f"theme_{theme_id}_{period}.json"
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"  Updated theme detail: {theme_id}")
+
+    logger.info(f"Single stock update completed for: {ticker}")
 
 
 if __name__ == "__main__":

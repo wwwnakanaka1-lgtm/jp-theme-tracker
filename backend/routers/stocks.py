@@ -1,5 +1,9 @@
 """銘柄関連APIルーター"""
 
+import logging
+import time
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Query
 import pandas as pd
 
@@ -20,6 +24,7 @@ from services.calculator import (
 from services.data_fetcher import fetch_stock_data, get_stock_info
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # 日経225ティッカー
@@ -350,3 +355,37 @@ def search_stocks(
         "results": results,
         "total": len(results),
     }
+
+
+@router.post("/api/stocks/{code}/refresh")
+def refresh_stock_data(code: str):
+    """個別銘柄のデータを更新
+
+    指定された銘柄コードが含まれる全テーマのデータを再計算して保存する
+
+    Args:
+        code: 銘柄コード（例: 7203.T または 7203）
+
+    Returns:
+        更新結果（ステータス、メッセージ、経過時間、タイムスタンプ）
+    """
+    from jobs.update_data import update_single_stock
+
+    start_time = time.time()
+
+    try:
+        update_single_stock(code)
+        elapsed = time.time() - start_time
+
+        return {
+            "status": "success",
+            "message": f"{code}のデータを更新しました",
+            "elapsed_seconds": round(elapsed, 1),
+            "timestamp": datetime.now().isoformat(),
+        }
+    except ValueError as e:
+        # 銘柄が見つからない場合
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Stock refresh failed for {code}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

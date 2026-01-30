@@ -405,3 +405,17 @@ export async function triggerDataRefresh(): Promise<RefreshResponse> {
     throw error;
   }
 }
+
+export async function triggerStockRefresh(code: string): Promise<RefreshResponse> {
+  const res = await fetch(`${API_BASE}/api/stocks/${code}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: '不明なエラー' }));
+    throw new Error(error.detail || `HTTP error: ${res.status}`);
+  }
+
+  return await res.json();
+}

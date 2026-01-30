@@ -7,7 +7,7 @@ import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'luc
 import TradingChart, { TradingChartSkeleton } from '@/components/TradingChart';
 import PeriodSelector from '@/components/PeriodSelector';
 import { useStockDetail } from '@/lib/hooks';
-import { type PeriodValue, PERIODS } from '@/lib/api';
+import { type PeriodValue, PERIODS, triggerStockRefresh } from '@/lib/api';
 
 export default function StockDetailPage() {
   const params = useParams();
@@ -17,6 +17,8 @@ export default function StockDetailPage() {
   const initialPeriod = (searchParams.get('period') as PeriodValue) || '1mo';
 
   const [period, setPeriod] = useState<PeriodValue>(initialPeriod);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   // SWR でデータ取得（キャッシュ有効）
   const { data: stock, error, isLoading, isValidating, mutate } = useStockDetail(stockCode, period);
@@ -28,6 +30,22 @@ export default function StockDetailPage() {
 
   const handleRetry = () => {
     mutate();
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      await triggerStockRefresh(stockCode);
+      mutate();
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : '更新失敗');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const isPositive = stock ? (stock.change_percent ?? 0) >= 0 : true;
@@ -100,6 +118,18 @@ export default function StockDetailPage() {
                   <span className="text-sm text-blue-400">
                     {stock.theme_name}
                   </span>
+                )}
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:cursor-not-allowed"
+                  title="銘柄データを更新"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? '更新中...' : '更新'}
+                </button>
+                {refreshError && (
+                  <span className="text-red-400 text-xs">{refreshError}</span>
                 )}
               </div>
               <h2 className="text-2xl font-bold text-gray-100">{stock.name}</h2>
