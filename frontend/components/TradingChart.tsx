@@ -22,6 +22,7 @@ interface TradingChartProps {
   chartIndicators?: ChartIndicators;
   selectedPeriodStartIndex?: number;
   height?: number;
+  period?: string;
 }
 
 export default function TradingChart({
@@ -29,6 +30,7 @@ export default function TradingChart({
   chartIndicators,
   // selectedPeriodStartIndex は v5 API で未対応のため未使用
   height = 400,
+  period = '1mo',
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -129,6 +131,28 @@ export default function TradingChart({
         borderColor: '#374151',
         timeVisible: true,
         secondsVisible: false,
+        tickMarkFormatter: (time: Time) => {
+          const date = new Date(time as string);
+          const isLongPeriod = ['3y', '5y'].includes(period);
+          const isMediumPeriod = ['1y', '6mo'].includes(period);
+
+          if (isLongPeriod) {
+            // 3Y/5Y: 年月のみ表示（例: 2024/01）
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${year}/${month}`;
+          } else if (isMediumPeriod) {
+            // 1Y/6M: 月/日 形式（例: 01/15）
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${month}/${day}`;
+          } else {
+            // 短期間: 月/日 形式（例: 01/15）
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${month}/${day}`;
+          }
+        },
       },
       rightPriceScale: {
         borderColor: '#374151',
@@ -293,7 +317,7 @@ export default function TradingChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [candleData, volumeData, indicatorData, indicatorMode, height]);
+  }, [candleData, volumeData, indicatorData, indicatorMode, height, period]);
 
   const hasChartIndicators = chartIndicators !== undefined;
 

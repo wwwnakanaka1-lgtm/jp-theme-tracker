@@ -106,6 +106,41 @@ def health_check():
     }
 
 
+def find_available_port(start_port: int = 8000, max_attempts: int = 100) -> int:
+    """空いているポートを探す"""
+    import socket
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("0.0.0.0", port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"No available port found in range {start_port}-{start_port + max_attempts}")
+
+
+def save_port_config(port: int):
+    """ポート番号を設定ファイルに保存（フロントエンドが読み取る）"""
+    from pathlib import Path
+    import json
+
+    config_path = Path(__file__).parent.parent / "port_config.json"
+    config_path.write_text(json.dumps({"backend_port": port}, indent=2))
+    logger.info(f"Port config saved to: {config_path}")
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
+    # 空いているポートを自動検出
+    port = find_available_port(8000)
+    save_port_config(port)
+
+    logger.info(f"Starting server on port {port}")
+    print(f"\n{'='*50}")
+    print(f"  Backend API: http://localhost:{port}")
+    print(f"  API Docs:    http://localhost:{port}/docs")
+    print(f"{'='*50}\n")
+
+    # reload=Trueの場合はインポート文字列で渡す必要がある
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

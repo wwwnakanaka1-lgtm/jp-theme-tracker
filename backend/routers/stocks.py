@@ -41,6 +41,8 @@ def get_period_days(period: str) -> int:
         "3mo": 63,
         "6mo": 126,
         "1y": 252,
+        "3y": 756,   # 252 * 3
+        "5y": 1260,  # 252 * 5
     }
     return period_days.get(period, 21)
 

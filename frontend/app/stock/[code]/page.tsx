@@ -191,6 +191,7 @@ export default function StockDetailPage() {
             history={stock.history}
             chartIndicators={stock.chart_indicators}
             selectedPeriodStartIndex={stock.selected_period_start_index}
+            period={period}
           />
         ) : (
           <div className="text-center py-8">
