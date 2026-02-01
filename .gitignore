@@ -26,3 +26,17 @@ cache/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local config (dynamic port)
+port_config.json
+.server.pid
+
+# Precomputed data (generated on server start)
+backend/precomputed/
+
+# PWA build artifacts
+frontend/public/sw.js
+frontend/public/workbox-*.js
+
+# TypeScript build info
+frontend/tsconfig.tsbuildinfo

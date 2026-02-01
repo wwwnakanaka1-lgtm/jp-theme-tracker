@@ -6,6 +6,27 @@ echo   Starting all servers...
 echo ========================================
 echo.
 
+REM Check if servers are already running
+set ALREADY_RUNNING=0
+netstat -ano | findstr ":3000 " | findstr "LISTENING" >nul 2>&1
+if %errorlevel%==0 (
+    echo [WARNING] Frontend server is already running on port 3000
+    set ALREADY_RUNNING=1
+)
+
+if %ALREADY_RUNNING%==1 (
+    echo.
+    echo Servers are already running!
+    echo To restart, run stop-all.bat first.
+    echo.
+    choice /C YN /M "Stop existing servers and restart"
+    if errorlevel 2 goto :end
+    echo.
+    echo Stopping existing servers...
+    call "%~dp0stop-all.bat"
+    timeout /t 2 /nobreak > nul
+)
+
 REM Get local IP address (Wi-Fi adapter)
 for /f "tokens=14" %%a in ('ipconfig ^| findstr "192.168"') do (
     set LOCAL_IP=%%a
@@ -15,7 +36,7 @@ for /f "tokens=14" %%a in ('ipconfig ^| findstr "192.168"') do (
 
 REM Start backend in new window (auto port selection)
 echo Starting backend with auto port selection...
-start "Backend" cmd /k "cd /d %~dp0backend && C:\Users\wwwhi\.venv\Scripts\activate.bat && python main.py"
+start "Backend - Theme Tracker" cmd /k "cd /d %~dp0backend && C:\Users\wwwhi\.venv\Scripts\activate.bat && python main.py"
 
 REM Wait for backend to start and write port config
 echo Waiting for backend to start...
@@ -50,16 +71,20 @@ echo ----------------------------------------
 echo.
 
 REM Start frontend
-start "Frontend" cmd /k "cd /d %~dp0frontend && npm run dev -- -H 0.0.0.0"
+start "Frontend - Theme Tracker" cmd /k "cd /d %~dp0frontend && npm run dev -- -H 0.0.0.0"
 
 echo.
 echo ========================================
 echo   Servers are starting in new windows!
 echo.
-echo   Backend:  http://%LOCAL_IP%:%BACKEND_PORT%
+echo   Backend:  http://%LOCAL_IP%:!BACKEND_PORT!
 echo   Frontend: http://%LOCAL_IP%:3000
+echo.
+echo   To stop all servers: stop-all.bat
 echo ========================================
 echo.
 echo Press any key to close this window...
 echo (Servers will keep running)
 pause > nul
+
+:end
