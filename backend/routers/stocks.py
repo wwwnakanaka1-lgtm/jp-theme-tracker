@@ -4,10 +4,11 @@ import logging
 import time
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 import pandas as pd
 
 from data.themes import get_ticker_info, get_all_tickers, THEMES
+from utils.security import validate_period, validate_stock_code, verify_api_key
 from utils.cache import cache
 from services.calculator import (
     get_stock_indicators,
@@ -60,6 +61,9 @@ def get_nikkei225(
     Returns:
         日経225の現在値、騰落率、スパークラインデータ
     """
+    # バリデーション
+    period = validate_period(period)
+
     # キャッシュチェック（5分間有効）
     cache_key = f"nikkei225:{period}"
     cached = cache.get(cache_key)
@@ -145,8 +149,9 @@ def get_stock_detail(
     Returns:
         銘柄詳細情報（価格データ、指標含む）
     """
-    # .Tが付いていなければ追加
-    ticker = code if code.endswith(".T") else f"{code}.T"
+    # バリデーション
+    period = validate_period(period)
+    ticker = validate_stock_code(code)
 
     # キャッシュチェック（5分間有効）
     cache_key = f"stock_detail:{ticker}:{period}"
@@ -284,7 +289,9 @@ def get_stock_chart_data(
     Returns:
         チャート用価格データ
     """
-    ticker = code if code.endswith(".T") else f"{code}.T"
+    # バリデーション
+    period = validate_period(period)
+    ticker = validate_stock_code(code)
 
     price_history = get_price_history(ticker, period)
 
@@ -360,23 +367,30 @@ def search_stocks(
 
 
 @router.post("/api/stocks/{code}/refresh")
-def refresh_stock_data(code: str):
-    """個別銘柄のデータを更新
+def refresh_stock_data(
+    code: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """個別銘柄のデータを更新（API Key認証必須）
 
     指定された銘柄コードが含まれる全テーマのデータを再計算して保存する
 
     Args:
         code: 銘柄コード（例: 7203.T または 7203）
+        api_key: X-API-Key ヘッダーで渡されるAPIキー
 
     Returns:
         更新結果（ステータス、メッセージ、経過時間、タイムスタンプ）
     """
     from jobs.update_data import update_single_stock
 
+    # バリデーション
+    ticker = validate_stock_code(code)
+
     start_time = time.time()
 
     try:
-        update_single_stock(code)
+        update_single_stock(ticker)
         elapsed = time.time() - start_time
 
         return {

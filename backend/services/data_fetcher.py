@@ -31,9 +31,16 @@ def ensure_cache_dir():
 
 
 def get_cache_path(ticker: str, period: str) -> Path:
-    """キャッシュファイルパスを取得"""
-    safe_ticker = ticker.replace(".", "_")
-    return CACHE_DIR / f"{safe_ticker}_{period}.json"
+    """キャッシュファイルパスを取得（パストラバーサル対策済み）"""
+    from utils.security import sanitize_filename, safe_path_join
+
+    # ファイル名をサニタイズ
+    safe_ticker = sanitize_filename(ticker.replace(".", "_"))
+    safe_period = sanitize_filename(period)
+    filename = f"{safe_ticker}_{safe_period}.json"
+
+    # 安全なパス結合（CACHE_DIR配下を保証）
+    return safe_path_join(CACHE_DIR, filename)
 
 
 def is_cache_valid(cache_path: Path) -> bool:
@@ -332,9 +339,13 @@ def classify_market_cap(market_cap: int) -> dict:
 
 
 def get_market_cap_cache_path(ticker: str) -> Path:
-    """時価総額キャッシュファイルパスを取得"""
-    safe_ticker = ticker.replace(".", "_")
-    return CACHE_DIR / f"{safe_ticker}_marketcap.json"
+    """時価総額キャッシュファイルパスを取得（パストラバーサル対策済み）"""
+    from utils.security import sanitize_filename, safe_path_join
+
+    safe_ticker = sanitize_filename(ticker.replace(".", "_"))
+    filename = f"{safe_ticker}_marketcap.json"
+
+    return safe_path_join(CACHE_DIR, filename)
 
 
 def get_cached_market_cap(ticker: str) -> Optional[dict]:

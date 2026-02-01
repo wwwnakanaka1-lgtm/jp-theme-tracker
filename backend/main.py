@@ -73,13 +73,32 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS設定（Next.jsから呼び出すため）
+# CORS設定（環境に応じて許可オリジンを制限）
+import os
+
+# 許可するオリジン（環境変数から取得、カンマ区切り）
+# 例: ALLOWED_ORIGINS=https://my-app.vercel.app,https://my-app.onrender.com
+_allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in _allowed_origins_env.split(",")
+    if origin.strip()
+]
+
+# 開発環境のフォールバック（環境変数未設定時）
+if not ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    logger.warning("ALLOWED_ORIGINS not set. Using development defaults.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 本番環境では適切なオリジンを指定
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,  # 認証情報は不要なためFalse
+    allow_methods=["GET", "POST", "OPTIONS"],  # 必要なメソッドのみ許可
+    allow_headers=["X-API-Key", "Content-Type"],  # 必要なヘッダーのみ許可
 )
 
 # ルーターを登録
@@ -136,11 +155,15 @@ if __name__ == "__main__":
     port = find_available_port(8000)
     save_port_config(port)
 
-    logger.info(f"Starting server on port {port}")
+    # 開発モード判定（環境変数で制御）
+    is_dev = os.environ.get("ENV", "development").lower() == "development"
+
+    logger.info(f"Starting server on port {port} (dev={is_dev})")
     print(f"\n{'='*50}")
     print(f"  Backend API: http://localhost:{port}")
     print(f"  API Docs:    http://localhost:{port}/docs")
+    print(f"  Mode:        {'Development' if is_dev else 'Production'}")
     print(f"{'='*50}\n")
 
-    # reload=Trueの場合はインポート文字列で渡す必要がある
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    # reload は開発モードでのみ有効
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=is_dev)

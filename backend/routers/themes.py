@@ -7,12 +7,13 @@
 import json
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from datetime import datetime
 import pandas as pd
 
 from data.themes import THEMES, get_theme_by_id, get_ticker_name, get_ticker_description, get_all_tickers
+from utils.security import validate_period, validate_theme_id, safe_path_join, verify_api_key
 from utils.cache import cache
 from services.calculator import (
     calculate_theme_return,
@@ -148,8 +149,11 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
     Returns:
         騰落率順にソートされたテーマ一覧
     """
-    # 1. 事前計算済みJSONを確認（最優先）
-    json_path = PRECOMPUTED_DIR / f"themes_{period}.json"
+    # バリデーション
+    period = validate_period(period)
+
+    # 1. 事前計算済みJSONを確認（最優先・パストラバーサル対策）
+    json_path = safe_path_join(PRECOMPUTED_DIR, f"themes_{period}.json")
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
@@ -171,12 +175,15 @@ def get_themes(period: str = Query("1mo", description="期間: 1d, 5d, 1mo, 3mo,
 
 
 @router.post("/api/refresh")
-def trigger_manual_refresh():
+def trigger_manual_refresh(api_key: str = Depends(verify_api_key)):
     """
-    手動データ更新エンドポイント
+    手動データ更新エンドポイント（API Key認証必須）
 
     全テーマデータを即座に更新する。
     更新処理には30秒〜数分かかる場合がある。
+
+    Headers:
+        X-API-Key: API認証キー
 
     Returns:
         更新結果のステータス
@@ -307,8 +314,12 @@ def get_theme_detail(
     Returns:
         テーマ詳細と構成銘柄情報
     """
-    # 1. 事前計算済みJSONを確認（最優先）
-    json_path = PRECOMPUTED_DIR / f"theme_{theme_id}_{period}.json"
+    # バリデーション
+    period = validate_period(period)
+    theme_id = validate_theme_id(theme_id)
+
+    # 1. 事前計算済みJSONを確認（最優先・パストラバーサル対策）
+    json_path = safe_path_join(PRECOMPUTED_DIR, f"theme_{theme_id}_{period}.json")
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
@@ -423,6 +434,10 @@ def get_theme_history(
     Returns:
         日次の騰落率推移
     """
+    # バリデーション
+    period = validate_period(period)
+    theme_id = validate_theme_id(theme_id)
+
     theme = get_theme_by_id(theme_id)
 
     if not theme:
@@ -472,8 +487,11 @@ def get_heatmap_data(
     Returns:
         時価総額カテゴリ別の銘柄一覧
     """
-    # 1. 事前計算済みJSONを確認（最優先）
-    json_path = PRECOMPUTED_DIR / f"heatmap_{period}.json"
+    # バリデーション
+    period = validate_period(period)
+
+    # 1. 事前計算済みJSONを確認（最優先・パストラバーサル対策）
+    json_path = safe_path_join(PRECOMPUTED_DIR, f"heatmap_{period}.json")
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
@@ -598,8 +616,11 @@ def get_sector_heatmap_data(
     Returns:
         セクター別の銘柄一覧とセクター平均騰落率
     """
-    # 1. 事前計算済みJSONを確認（最優先）
-    json_path = PRECOMPUTED_DIR / f"heatmap_sector_{period}.json"
+    # バリデーション
+    period = validate_period(period)
+
+    # 1. 事前計算済みJSONを確認（最優先・パストラバーサル対策）
+    json_path = safe_path_join(PRECOMPUTED_DIR, f"heatmap_sector_{period}.json")
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
