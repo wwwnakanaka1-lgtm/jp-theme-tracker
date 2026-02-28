@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from jobs.update_data import update_all_data, update_if_stale
+from middleware import RateLimitMiddleware
 from routers import stocks, themes
 
 # ロガー設定
@@ -100,6 +101,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],  # 必要なメソッドのみ許可
     allow_headers=["X-API-Key", "Content-Type"],  # 必要なヘッダーのみ許可
 )
+
+# Rate limiting & security headers middleware
+app.add_middleware(RateLimitMiddleware, max_requests=60, window_seconds=60)
 
 # ルーターを登録
 app.include_router(themes.router, tags=["themes"])
