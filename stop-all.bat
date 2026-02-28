@@ -1,19 +1,19 @@
 @echo off
 chcp 65001 > nul
+title [Stop] JP Theme Tracker
 echo ========================================
 echo   Japan Stock Theme Tracker
 echo   Stopping all servers...
 echo ========================================
 echo.
 
-REM Kill Python/uvicorn processes (Backend)
+REM Kill backend by window title
 echo Stopping backend servers...
-taskkill /F /FI "WINDOWTITLE eq Backend*" >nul 2>&1
-taskkill /F /IM python.exe /FI "WINDOWTITLE eq Backend*" >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq [API] JP Theme Tracker*" >nul 2>&1
 
-REM Kill Node processes (Frontend)
+REM Kill frontend by window title
 echo Stopping frontend servers...
-taskkill /F /FI "WINDOWTITLE eq Frontend*" >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq [Next.js] JP Theme Tracker*" >nul 2>&1
 
 REM Also kill any orphaned processes on typical ports
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000 " ^| findstr "LISTENING"') do (

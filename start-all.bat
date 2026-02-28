@@ -1,5 +1,7 @@
 @echo off
 chcp 65001 > nul
+setlocal enabledelayedexpansion
+title [Dev] JP Theme Tracker - Launcher
 echo ========================================
 echo   Japan Stock Theme Tracker
 echo   Starting all servers...
@@ -34,18 +36,26 @@ for /f "tokens=14" %%a in ('ipconfig ^| findstr "192.168"') do (
 )
 :found
 
-REM Start backend in new window (auto port selection)
-echo Starting backend with auto port selection...
-start "Backend - Theme Tracker" cmd /k "cd /d %~dp0backend && C:\Users\wwwhi\.venv\Scripts\activate.bat && python main.py"
+REM Find available backend port
+set PORT=8000
+:find_backend_port
+netstat -ano 2>nul | findstr ":%PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel%==0 (
+    echo [WARN] Port %PORT% is in use, trying next...
+    set /a PORT+=1
+    goto :find_backend_port
+)
+set BACKEND_PORT=!PORT!
+
+REM Start backend in new minimized window
+echo Starting backend on port !BACKEND_PORT!...
+start /min "[API] JP Theme Tracker - :!BACKEND_PORT!" cmd /k "cd /d %~dp0backend && C:\Users\wwwhi\.venv\Scripts\activate.bat && python main.py --port !BACKEND_PORT!"
 
 REM Wait for backend to start and write port config
 echo Waiting for backend to start...
 timeout /t 5 /nobreak > nul
 
-setlocal enabledelayedexpansion
-
-REM Read port from config file
-set BACKEND_PORT=8000
+REM Read port from config file (backend may have written it)
 if exist "%~dp0port_config.json" (
     for /f "tokens=2 delims=:," %%a in ('type "%~dp0port_config.json" ^| findstr "backend_port"') do (
         set "BACKEND_PORT=%%a"
@@ -57,32 +67,47 @@ REM Write .env.local file for Next.js
 echo NEXT_PUBLIC_API_URL=http://localhost:!BACKEND_PORT!> "%~dp0frontend\.env.local"
 echo Created .env.local with API URL: http://localhost:!BACKEND_PORT!
 
+REM Find available frontend port
+set PORT=3000
+:find_frontend_port
+netstat -ano 2>nul | findstr ":%PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel%==0 (
+    echo [WARN] Port %PORT% is in use, trying next...
+    set /a PORT+=1
+    goto :find_frontend_port
+)
+set FRONTEND_PORT=!PORT!
+
 echo.
 echo Your local IP: %LOCAL_IP%
 echo.
 echo Backend:  http://%LOCAL_IP%:!BACKEND_PORT!
-echo Frontend: http://%LOCAL_IP%:3000
+echo Frontend: http://%LOCAL_IP%:!FRONTEND_PORT!
 echo.
 echo ----------------------------------------
 echo Access from smartphone:
 echo   Open browser and go to:
-echo   http://%LOCAL_IP%:3000
+echo   http://%LOCAL_IP%:!FRONTEND_PORT!
 echo ----------------------------------------
 echo.
 
-REM Start frontend
-start "Frontend - Theme Tracker" cmd /k "cd /d %~dp0frontend && npm run dev -- -H 0.0.0.0"
+REM Start frontend in new minimized window
+start /min "[Next.js] JP Theme Tracker - :!FRONTEND_PORT!" cmd /k "cd /d %~dp0frontend && npm run dev -- -H 0.0.0.0 -p !FRONTEND_PORT!"
 
 echo.
 echo ========================================
 echo   Servers are starting in new windows!
 echo.
 echo   Backend:  http://%LOCAL_IP%:!BACKEND_PORT!
-echo   Frontend: http://%LOCAL_IP%:3000
+echo   Frontend: http://%LOCAL_IP%:!FRONTEND_PORT!
 echo.
 echo   To stop all servers: stop-all.bat
 echo ========================================
 echo.
+REM --- Wait for servers to start, then open browser ---
+ping -n 6 127.0.0.1 >nul 2>&1
+start http://localhost:!FRONTEND_PORT!
+
 echo Press any key to close this window...
 echo (Servers will keep running)
 pause > nul

@@ -666,6 +666,7 @@ THEMES = {
 
 def get_theme_names() -> list[str]:
     """テーマ名一覧を取得"""
+# req:REQ-002
     return list(THEMES.keys())
 
 

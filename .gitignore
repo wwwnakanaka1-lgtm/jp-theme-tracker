@@ -40,3 +40,12 @@ frontend/public/workbox-*.js
 
 # TypeScript build info
 frontend/tsconfig.tsbuildinfo
+
+# Spec-drift-guard artifacts (generated)
+.sdg/
+
+# Generated reports
+reports/
+
+# Generated spec documents
+docs/SPEC_*.html

@@ -34,6 +34,8 @@ NIKKEI_TICKER = "^N225"
 
 def get_period_days(period: str) -> int:
     """期間文字列から日数を取得"""
+# req:REQ-010
+# req:REQ-009
     period_days = {
         "1d": 1,
         "5d": 5,

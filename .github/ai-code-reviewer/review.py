@@ -3,6 +3,7 @@
 自動コードレビューボット
 GitHub PRの差分をGroq API（Llama）でレビューし、結果をPRコメントとして投稿する
 """
+# req:REQ-015
 
 import os
 import sys

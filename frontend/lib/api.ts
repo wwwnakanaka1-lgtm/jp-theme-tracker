@@ -1,3 +1,5 @@
+// req:REQ-009
+// req:REQ-012
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface SparklineData {

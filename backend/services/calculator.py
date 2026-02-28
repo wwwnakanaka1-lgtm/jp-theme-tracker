@@ -11,6 +11,8 @@ from services.data_fetcher import fetch_stock_data, fetch_batch
 
 def calculate_return(df: pd.DataFrame) -> float:
     """
+# req:REQ-011
+# req:REQ-010
     期間騰落率を計算
 
     Args:

@@ -3,6 +3,7 @@
 事前計算済みJSONからデータを読み込み、即座に応答
 フォールバック: JSONがなければリアルタイム計算
 """
+# req:REQ-005
 
 import json
 import logging

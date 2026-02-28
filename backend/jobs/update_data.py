@@ -5,6 +5,7 @@
 5分ごとに実行し、全データを事前計算してJSONファイルに保存
 ユーザーリクエスト時はJSONを読むだけで即座に応答可能
 """
+# req:REQ-003
 import json
 import logging
 import sys

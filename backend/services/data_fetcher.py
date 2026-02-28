@@ -22,6 +22,8 @@ CACHE_TTL_HOURS = 24
 # メモリキャッシュ用の日付キー（1日ごとに更新）
 def get_cache_date_key() -> str:
     """当日の日付をキャッシュキーとして返す"""
+# req:REQ-012
+# req:REQ-011
     return datetime.now().strftime("%Y-%m-%d")
 
 

@@ -5,6 +5,7 @@
 - 5分ごとに自動更新
 - ユーザーリクエストは事前計算済みJSONから即座に応答
 """
+# req:REQ-001
 
 import logging
 from contextlib import asynccontextmanager
