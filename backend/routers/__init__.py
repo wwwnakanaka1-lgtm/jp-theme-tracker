@@ -1,6 +1,6 @@
 """Routers module"""
 
-from routers import themes, stocks
+from routers import stocks, themes
 
 __all__ = [
     "themes",

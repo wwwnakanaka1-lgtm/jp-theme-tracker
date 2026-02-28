@@ -8,14 +8,15 @@
 # req:REQ-001
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from apscheduler.schedulers.background import BackgroundScheduler
 
-from routers import themes, stocks
 from jobs.update_data import update_all_data, update_if_stale
+from routers import stocks, themes
 
 # ロガー設定
 logging.basicConfig(
@@ -75,8 +76,6 @@ app = FastAPI(
 )
 
 # CORS設定（環境に応じて許可オリジンを制限）
-import os
-
 # 許可するオリジン（環境変数から取得、カンマ区切り）
 # 例: ALLOWED_ORIGINS=https://my-app.vercel.app,https://my-app.onrender.com
 _allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
@@ -141,8 +140,8 @@ def find_available_port(start_port: int = 8000, max_attempts: int = 100) -> int:
 
 def save_port_config(port: int):
     """ポート番号を設定ファイルに保存（フロントエンドが読み取る）"""
-    from pathlib import Path
     import json
+    from pathlib import Path
 
     config_path = Path(__file__).parent.parent / "port_config.json"
     config_path.write_text(json.dumps({"backend_port": port}, indent=2))

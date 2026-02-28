@@ -7,26 +7,25 @@
 
 import json
 import logging
-from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Optional
 from datetime import datetime
-import pandas as pd
+from pathlib import Path
 
-from data.themes import THEMES, get_theme_by_id, get_ticker_name, get_ticker_description, get_all_tickers
-from utils.security import validate_period, validate_theme_id, safe_path_join, verify_api_key
-from utils.cache import cache
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from data.themes import THEMES, get_all_tickers, get_theme_by_id, get_ticker_description, get_ticker_name
 from services.calculator import (
-    calculate_theme_return,
-    calculate_theme_daily_returns,
-    calculate_return,
-    calculate_return_from_data,
-    calculate_theme_daily_returns_from_data,
-    calculate_daily_returns,
     calculate_beta_alpha,
+    calculate_daily_returns,
+    calculate_return_from_data,
+    calculate_theme_daily_returns,
+    calculate_theme_daily_returns_from_data,
+    calculate_theme_return,
     get_stock_indicators,
 )
-from services.data_fetcher import fetch_stock_data, fetch_batch_parallel, get_market_cap
+from services.data_fetcher import fetch_batch_parallel, fetch_stock_data, get_market_cap
+from utils.cache import cache
+from utils.security import safe_path_join, validate_period, validate_theme_id, verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +189,7 @@ def trigger_manual_refresh(api_key: str = Depends(verify_api_key)):
         更新結果のステータス
     """
     import time
+
     from jobs.update_data import update_all_data
 
     start_time = time.time()
@@ -510,7 +510,7 @@ def get_heatmap_data(
 
     # 3. フォールバック: リアルタイム計算
     logger.info(f"Fallback to realtime heatmap calculation for period: {period}")
-    from services.data_fetcher import get_market_cap, classify_market_cap
+    from services.data_fetcher import get_market_cap
 
     stocks_by_category = {
         "mega": [],

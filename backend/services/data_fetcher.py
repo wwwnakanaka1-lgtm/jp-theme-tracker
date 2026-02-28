@@ -2,7 +2,6 @@
 
 import json
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -34,7 +33,7 @@ def ensure_cache_dir():
 
 def get_cache_path(ticker: str, period: str) -> Path:
     """キャッシュファイルパスを取得（パストラバーサル対策済み）"""
-    from utils.security import sanitize_filename, safe_path_join
+    from utils.security import safe_path_join, sanitize_filename
 
     # ファイル名をサニタイズ
     safe_ticker = sanitize_filename(ticker.replace(".", "_"))
@@ -342,7 +341,7 @@ def classify_market_cap(market_cap: int) -> dict:
 
 def get_market_cap_cache_path(ticker: str) -> Path:
     """時価総額キャッシュファイルパスを取得（パストラバーサル対策済み）"""
-    from utils.security import sanitize_filename, safe_path_join
+    from utils.security import safe_path_join, sanitize_filename
 
     safe_ticker = sanitize_filename(ticker.replace(".", "_"))
     filename = f"{safe_ticker}_marketcap.json"

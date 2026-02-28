@@ -16,13 +16,13 @@ from pathlib import Path
 # プロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data.themes import THEMES, get_ticker_name, get_ticker_description, get_all_tickers
-from services.data_fetcher import fetch_batch_parallel, fetch_stock_data, get_market_cap
+from data.themes import THEMES, get_all_tickers, get_ticker_description, get_ticker_name
 from services.calculator import (
+    calculate_daily_returns,
     calculate_return_from_data,
     calculate_theme_daily_returns_from_data,
-    calculate_daily_returns,
 )
+from services.data_fetcher import fetch_batch_parallel, fetch_stock_data, get_market_cap
 
 logger = logging.getLogger(__name__)
 

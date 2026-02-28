@@ -4,25 +4,25 @@ import logging
 import time
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
 import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from data.themes import get_ticker_info, get_all_tickers, THEMES
-from utils.security import validate_period, validate_stock_code, verify_api_key
-from utils.cache import cache
+from data.themes import THEMES, get_ticker_info
 from services.calculator import (
-    get_stock_indicators,
-    get_price_history,
-    calculate_daily_returns,
-    calculate_theme_daily_returns,
     calculate_beta_alpha,
-    calculate_return,
-    calculate_ma,
-    calculate_rsi,
     calculate_bollinger_bands,
+    calculate_daily_returns,
     calculate_ichimoku,
+    calculate_ma,
+    calculate_return,
+    calculate_rsi,
+    calculate_theme_daily_returns,
+    get_price_history,
+    get_stock_indicators,
 )
 from services.data_fetcher import fetch_stock_data, get_stock_info
+from utils.cache import cache
+from utils.security import validate_period, validate_stock_code, verify_api_key
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

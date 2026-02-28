@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from services.data_fetcher import fetch_stock_data, fetch_batch
+from services.data_fetcher import fetch_batch, fetch_stock_data
 
 
 def calculate_return(df: pd.DataFrame) -> float:
